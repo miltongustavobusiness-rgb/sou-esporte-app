@@ -1,0 +1,1 @@
+ALTER TABLE `events` MODIFY COLUMN `eventType` enum('corrida','ciclismo','triathlon','trail','natacao','caminhada','ultramaratona','corrida_montanha','duathlon','aquathlon','ironman','mtb','ocr','outro') DEFAULT 'corrida';

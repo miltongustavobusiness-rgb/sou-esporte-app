@@ -1,0 +1,125 @@
+{
+  "version": "7",
+  "dialect": "mysql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1767891273037,
+      "tag": "0000_brief_mariko_yashida",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1767891405175,
+      "tag": "0001_minor_gladiator",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1768326088843,
+      "tag": "0002_classy_terror",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1768476717642,
+      "tag": "0003_graceful_ma_gnuci",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1768493329979,
+      "tag": "0004_gigantic_proteus",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1768499464275,
+      "tag": "0005_simple_leech",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1768502357082,
+      "tag": "0006_clammy_mister_fear",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "5",
+      "when": 1768586628936,
+      "tag": "0007_wide_patch",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "5",
+      "when": 1768787029388,
+      "tag": "0008_cold_hobgoblin",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "5",
+      "when": 1768791009987,
+      "tag": "0009_crazy_khan",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "5",
+      "when": 1768838225958,
+      "tag": "0010_talented_maddog",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "5",
+      "when": 1768839193532,
+      "tag": "0011_lively_sauron",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "5",
+      "when": 1768859437329,
+      "tag": "0012_abandoned_harrier",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "5",
+      "when": 1768861338720,
+      "tag": "0013_gray_klaw",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "5",
+      "when": 1768871565403,
+      "tag": "0014_adorable_kate_bishop",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "5",
+      "when": 1768873077922,
+      "tag": "0015_youthful_talon",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "5",
+      "when": 1768941279800,
+      "tag": "0016_fair_carnage",
+      "breakpoints": true
+    }
+  ]
+}

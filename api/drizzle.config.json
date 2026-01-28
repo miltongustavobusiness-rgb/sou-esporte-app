@@ -1,0 +1,11 @@
+{
+  "dialect": "mysql",
+  "schema": "./drizzle/schema.ts",
+  "out": "./drizzle/migrations",
+  "dbCredentials": {
+    "host": "localhost",
+    "user": "souesporte",
+    "password": "souesporte123",
+    "database": "souesporte"
+  }
+}

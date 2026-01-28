@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `eventTime` varchar(5);

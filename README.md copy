@@ -1,0 +1,203 @@
+# 🏃 SOU ESPORTE V12.3 - API Fix
+
+**Backup Completo do Aplicativo Sou Esporte**  
+*Data: 26 de Janeiro de 2026*
+
+---
+
+## 📋 Sobre Este Backup
+
+Este é um backup **100% completo e funcional** do aplicativo Sou Esporte, com correção crítica para rodar localmente.
+
+### ✅ Correções incluídas nesta versão (V12.3):
+
+| Correção | Descrição |
+|----------|-----------|
+| ✅ **API Mobile-First** | Removida dependência de `client/index.html` |
+| ✅ **Erro ENOENT** | Corrigido erro 500 ao acessar raiz `/` |
+| ✅ **Rota Raiz** | Agora retorna JSON com status da API |
+| ✅ **Health Check** | Endpoint `/health` funcionando |
+| ✅ **tRPC** | Endpoints `/api/trpc/*` funcionando normalmente |
+
+### Correções herdadas da V12.2:
+- ✅ Categoria de Atleta (PRO/AMATEUR/COACH) salvando corretamente
+- ✅ Modalidades esportivas funcionando
+- ✅ Integração Grid/Bio com backend
+
+---
+
+## 🚀 Instalação Rápida
+
+### 1. Configurar Banco de Dados
+
+```bash
+# Criar banco e usuário
+sudo mysql -e "CREATE DATABASE IF NOT EXISTS souesporte CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;"
+sudo mysql -e "CREATE USER IF NOT EXISTS 'souesporte'@'localhost' IDENTIFIED BY 'souesporte123';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON souesporte.* TO 'souesporte'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
+
+# Importar dados
+mysql -u souesporte -psouesporte123 souesporte < database/souesporte_full_dump.sql
+```
+
+### 2. Iniciar API (Terminal 1)
+
+```bash
+cd api
+npm install
+npm run dev
+```
+
+**Verificar se está funcionando:**
+```bash
+curl http://localhost:3000/
+# Deve retornar: {"status":"ok","message":"Sou Esporte API is running",...}
+```
+
+### 3. Iniciar Mobile (Terminal 2)
+
+```bash
+cd mobile
+npm install
+npx expo start --tunnel
+```
+
+---
+
+## 📁 Estrutura do Backup
+
+```
+V12.3-Sou-Esporte-API-Fix/
+├── README.md                    # Esta documentação
+├── CREDENCIAIS.md               # Todas as credenciais
+├── RESTAURAR_COMPLETO.sh        # Script de restauração automática
+│
+├── api/                         # Backend (Node.js + tRPC)
+│   ├── server/
+│   │   ├── _core/
+│   │   │   └── vite.ts          # ⭐ ARQUIVO CORRIGIDO
+│   │   ├── routers.ts
+│   │   └── db.ts
+│   ├── drizzle/
+│   ├── package.json
+│   └── .env.example
+│
+├── mobile/                      # Frontend (React Native + Expo)
+│   ├── src/
+│   │   ├── screens/
+│   │   ├── components/
+│   │   └── services/
+│   └── package.json
+│
+└── database/
+    └── souesporte_full_dump.sql # Dump completo (41 tabelas)
+```
+
+---
+
+## 🔧 O que foi corrigido no `vite.ts`
+
+### Antes (V12.2 - com erro):
+```typescript
+// Tentava carregar client/index.html que não existe
+const clientTemplate = path.resolve(..., "client", "index.html");
+let template = await fs.promises.readFile(clientTemplate, "utf-8");
+// ❌ Error: ENOENT: no such file or directory
+```
+
+### Depois (V12.3 - corrigido):
+```typescript
+// API pura, sem dependência de frontend web
+app.get("/", (_req, res) => {
+  res.status(200).json({
+    status: "ok",
+    message: "Sou Esporte API is running",
+    version: "12.3",
+    endpoints: { health: "/health", trpc: "/api/trpc/*" }
+  });
+});
+// ✅ Funciona perfeitamente
+```
+
+---
+
+## 🔑 Credenciais
+
+### Banco de Dados
+```
+Host:     localhost
+Database: souesporte
+User:     souesporte
+Password: souesporte123
+```
+
+### JWT
+```
+Secret: sou-esporte-jwt-secret-v12-2026
+```
+
+### Usuário de Teste
+```
+Email: miltongustavo@hotmail.com
+Login: Via OTP (código aparece no console da API)
+```
+
+---
+
+## 🛠️ Troubleshooting
+
+### Erro: "Connection refused" ao conectar no MySQL
+
+```bash
+# macOS com Homebrew
+brew services start mariadb
+
+# Linux
+sudo systemctl start mariadb
+```
+
+### Erro: "Access denied" no MySQL
+
+```bash
+# Recriar usuário
+sudo mysql -e "DROP USER IF EXISTS 'souesporte'@'localhost';"
+sudo mysql -e "CREATE USER 'souesporte'@'localhost' IDENTIFIED BY 'souesporte123';"
+sudo mysql -e "GRANT ALL PRIVILEGES ON souesporte.* TO 'souesporte'@'localhost';"
+sudo mysql -e "FLUSH PRIVILEGES;"
+```
+
+### API retorna erro 500
+
+```bash
+# Verificar se está usando V12.3
+curl http://localhost:3000/
+# Deve retornar JSON, não erro 500
+```
+
+### OTP não chega
+
+```bash
+# Em desenvolvimento, o código OTP aparece no console da API
+# Procure por: "OTP Code: XXXXXX"
+```
+
+---
+
+## 📞 Informações Adicionais
+
+### Versão
+- **Versão**: 12.3 "API Fix"
+- **Data**: 26 de Janeiro de 2026
+- **Status**: ✅ Completo e Funcional
+
+### Changelog V12.3
+- Removida dependência de `client/index.html` no `vite.ts`
+- API agora funciona como backend puro (mobile-first)
+- Rota raiz `/` retorna JSON com status
+- Endpoint `/health` funcionando
+- Todos os endpoints tRPC funcionando normalmente
+
+---
+
+**Desenvolvido com ❤️ para a comunidade esportiva brasileira**

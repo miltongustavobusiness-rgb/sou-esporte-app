@@ -1,0 +1,1 @@
+ALTER TABLE `events` ADD `subscribersCount` int DEFAULT 0 NOT NULL;
