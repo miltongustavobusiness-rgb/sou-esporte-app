@@ -229,13 +229,15 @@ export default function CreateGroupScreen() {
     
     try {
       // Criar grupo via API - passa o userId do usuário logado como ownerId
+      // Nota: state deve ser sigla (ES, SP, RJ), bairro vai no meetingPoint
       const result = await api.createGroup({
         name: nome,
         description: regras || undefined,
         privacy: visibilidade === 'publico' ? 'public' : 'private',
         groupType: modalidade as any,
         city: cidade,
-        state: bairro || undefined,
+        // state: não enviamos pois não temos campo de sigla do estado
+        meetingPoint: bairro || undefined, // Bairro vai como ponto de encontro
         requiresApproval: aprovarMembrosManualmente,
         ownerId: user?.id, // Usuário logado será o dono do grupo
       });
