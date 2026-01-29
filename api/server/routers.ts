@@ -1653,28 +1653,92 @@ export const appRouter = router({
           description: z.string().max(1000).optional(),
           privacy: z.enum(['public', 'private']).default('public'),
           groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'other']).default('running'),
+          sportTypes: z.union([z.array(z.string()), z.string()]).optional(), // Accept array or string
           city: z.string().optional(),
           state: z.string().max(2).optional(), // Sigla do estado (ES, SP, RJ)
           neighborhood: z.string().optional(), // Bairro
           meetingPoint: z.string().optional(),
-          requiresApproval: z.boolean().default(false),
+          allowJoinRequests: z.union([z.boolean(), z.string()]).optional(), // Accept boolean or string
+          requiresApproval: z.union([z.boolean(), z.string()]).optional(), // Accept boolean or string
           ownerId: z.number().optional(), // Pass userId from mobile
         }))
         .mutation(async ({ input }) => {
-          const ownerId = input.ownerId || 1; // Default to user 1 for testing
-          const groupId = await db.createGroup({
-            name: input.name,
-            description: input.description,
-            privacy: input.privacy,
-            groupType: input.groupType,
-            city: input.city,
-            state: input.state,
-            neighborhood: input.neighborhood,
-            meetingPoint: input.meetingPoint,
-            requiresApproval: input.requiresApproval,
-            ownerId,
-          });
-          return { success: true, groupId };
+          try {
+            const ownerId = input.ownerId || 1; // Default to user 1 for testing
+            
+            // === SERIALIZE sportTypes AS VALID JSON ===
+            let sportTypesJson: string;
+            if (input.sportTypes) {
+              if (Array.isArray(input.sportTypes)) {
+                // Array -> stringify
+                sportTypesJson = JSON.stringify(input.sportTypes);
+              } else if (typeof input.sportTypes === 'string') {
+                // String -> check if already JSON
+                if (input.sportTypes.startsWith('[') || input.sportTypes.startsWith('{')) {
+                  try {
+                    JSON.parse(input.sportTypes); // Validate
+                    sportTypesJson = input.sportTypes;
+                  } catch {
+                    sportTypesJson = JSON.stringify([input.sportTypes]);
+                  }
+                } else {
+                  sportTypesJson = JSON.stringify([input.sportTypes]);
+                }
+              } else {
+                sportTypesJson = JSON.stringify([input.groupType || 'running']);
+              }
+            } else {
+              // Default: use groupType as sportTypes
+              sportTypesJson = JSON.stringify([input.groupType || 'running']);
+            }
+            
+            // === CONVERT BOOLEANS TO 1/0 ===
+            const toBool = (val: boolean | string | undefined, defaultVal: boolean): boolean => {
+              if (val === undefined) return defaultVal;
+              if (typeof val === 'boolean') return val;
+              return val === 'true' || val === '1';
+            };
+            
+            const allowJoinRequests = toBool(input.allowJoinRequests, true);
+            const requiresApproval = toBool(input.requiresApproval, false);
+            
+            console.log('[CreateGroup] Input:', {
+              name: input.name,
+              groupType: input.groupType,
+              sportTypes: sportTypesJson,
+              allowJoinRequests,
+              requiresApproval,
+              ownerId,
+            });
+            
+            const groupId = await db.createGroup({
+              name: input.name,
+              description: input.description,
+              privacy: input.privacy,
+              groupType: input.groupType,
+              sportTypes: sportTypesJson, // JSON string
+              city: input.city,
+              state: input.state,
+              neighborhood: input.neighborhood,
+              meetingPoint: input.meetingPoint,
+              allowJoinRequests,
+              requiresApproval,
+              ownerId,
+            });
+            
+            console.log('[CreateGroup] Success! groupId:', groupId);
+            return { success: true, groupId };
+          } catch (error: any) {
+            // === DETAILED ERROR LOGGING ===
+            console.error('[CreateGroup] ERROR:', {
+              code: error.code,
+              message: error.message,
+              sql: error.sql,
+              sqlState: error.sqlState,
+              errno: error.errno,
+            });
+            throw error;
+          }
         }),
       
       // List user groups (public for mobile)
