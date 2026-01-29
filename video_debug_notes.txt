@@ -1,0 +1,24 @@
+VIDEO DEBUG NOTES - 29 Jan 2026
+================================
+
+PROBLEMA OBSERVADO:
+- Vídeos mostram tela preta com ícone de play riscado (erro de carregamento)
+- Tanto no Feed quanto no player fullscreen
+- Post de "Milton Gustavo" com texto "Boa noite!" - vídeo não carrega
+- Mostra "1/5" indicando que há 5 vídeos, nenhum funciona
+
+ERRO ANTERIOR IDENTIFICADO:
+- Console mostrava: VIDEO ERROR: {"url":"file:/...
+- URLs começam com "file:/" em vez de "https://"
+- Isso indica que os vídeos foram selecionados do dispositivo mas NÃO foram uploaded para servidor
+
+CAUSA RAIZ PROVÁVEL:
+1. Upload de vídeo falhou ou não foi implementado corretamente
+2. URLs locais (file://) foram salvas no banco em vez de URLs remotas (https://)
+3. O app tenta carregar URLs locais que não existem no dispositivo atual
+
+SOLUÇÃO NECESSÁRIA:
+1. Verificar código de upload de vídeo no backend
+2. Verificar se há bucket S3 configurado
+3. Corrigir fluxo de upload para salvar URLs remotas
+4. Re-upload dos vídeos existentes (ou deletar posts com URLs inválidas)
