@@ -1628,9 +1628,13 @@ ApiService.prototype.getSavedPosts = async function(limit: number = 50, offset: 
 };
 
 // Groups
-ApiService.prototype.getUserGroups = async function(): Promise<Group[]> {
+ApiService.prototype.getUserGroups = async function(userId?: number): Promise<Group[]> {
   try {
-    return await this.trpcQuery<Group[]>('groups.list', {});
+    if (!userId) {
+      console.warn('getUserGroups called without userId');
+      return [];
+    }
+    return await this.trpcQuery<Group[]>('mobile.groups.list', { userId });
   } catch (error) {
     console.error('Get user groups error:', error);
     return [];
@@ -1810,7 +1814,7 @@ declare module './api' {
     likeComment(commentId: number): Promise<{ success: boolean }>;
     unlikeComment(commentId: number): Promise<{ success: boolean }>;
     reportContent(data: { targetType: string; targetId: number; reason: string; description?: string }): Promise<{ success: boolean; reportId?: number }>;
-    getUserGroups(): Promise<Group[]>;
+    getUserGroups(userId?: number): Promise<Group[]>;
     getGroup(groupId: number): Promise<Group | null>;
     createGroup(data: any): Promise<{ success: boolean; groupId?: number }>;
     joinGroup(groupId: number): Promise<{ success: boolean }>;

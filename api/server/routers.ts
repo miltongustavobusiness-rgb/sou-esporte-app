@@ -1677,6 +1677,13 @@ export const appRouter = router({
           return { success: true, groupId };
         }),
       
+      // List user groups (public for mobile)
+      list: publicProcedure
+        .input(z.object({ userId: z.number() }))
+        .query(async ({ input }) => {
+          return await db.getUserGroups(input.userId);
+        }),
+      
       // Get group by ID
       getById: publicProcedure
         .input(z.object({ groupId: z.number() }))

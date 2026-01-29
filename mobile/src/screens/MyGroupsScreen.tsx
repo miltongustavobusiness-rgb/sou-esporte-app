@@ -16,6 +16,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import { api } from '../services/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -98,13 +99,19 @@ const GroupCard = ({ group, onPress }: { group: Group; onPress: () => void }) =>
 
 export default function MyGroupsScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useApp();
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadGroups = useCallback(async () => {
     try {
-      const userGroups = await api.getUserGroups();
+      if (!user?.id) {
+        console.warn('No user logged in');
+        setGroups([]);
+        return;
+      }
+      const userGroups = await api.getUserGroups(user.id);
       setGroups(userGroups || []);
     } catch (error) {
       console.error('Error loading groups:', error);
@@ -113,7 +120,7 @@ export default function MyGroupsScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [user?.id]);
 
   useFocusEffect(
     useCallback(() => {
