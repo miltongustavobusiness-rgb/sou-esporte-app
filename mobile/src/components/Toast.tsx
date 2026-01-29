@@ -24,7 +24,7 @@ const Toast: React.FC<ToastProps> = ({
   const translateY = useRef(new Animated.Value(-100)).current;
 
   useEffect(() => {
-    if (visible) {
+    if (visible === true) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -63,7 +63,8 @@ const Toast: React.FC<ToastProps> = ({
     });
   };
 
-  if (!visible) return null;
+  // Ensure visible is strictly boolean
+  if (visible !== true) return null;
 
   const getBackgroundColor = (): string => {
     switch (type) {
