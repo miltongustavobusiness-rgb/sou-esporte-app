@@ -1595,3 +1595,38 @@ export const groupRankings = mysqlTable("group_rankings", {
 
 export type GroupRanking = typeof groupRankings.$inferSelect;
 export type InsertGroupRanking = typeof groupRankings.$inferInsert;
+
+
+/**
+ * Sport Modalities - Modalidades esportivas (padrão + personalizadas)
+ * Permite criar novas modalidades que aparecem em buscas
+ */
+export const sportModalities = mysqlTable("sport_modalities", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  // Identificador único (slug) - usado internamente
+  slug: varchar("slug", { length: 50 }).notNull().unique(),
+  
+  // Nome de exibição
+  name: varchar("name", { length: 100 }).notNull(),
+  
+  // Ícone (nome do Ionicons)
+  icon: varchar("icon", { length: 50 }).default("fitness-outline"),
+  
+  // Se é uma modalidade padrão do sistema ou criada por usuário
+  isDefault: boolean("isDefault").default(false),
+  
+  // Usuário que criou (null se for padrão do sistema)
+  createdBy: int("createdBy"),
+  
+  // Contador de uso (para ordenar por popularidade)
+  usageCount: int("usageCount").default(0),
+  
+  // Status
+  status: mysqlEnum("status", ["active", "inactive", "pending"]).default("active").notNull(),
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+export type SportModality = typeof sportModalities.$inferSelect;
+export type InsertSportModality = typeof sportModalities.$inferInsert;

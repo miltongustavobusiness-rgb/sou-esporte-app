@@ -1651,6 +1651,7 @@ ApiService.prototype.createGroup = async function(data: {
   description?: string;
   privacy?: 'public' | 'private';
   groupType?: 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other';
+  customModality?: string; // Modalidade personalizada quando groupType = 'other'
   city?: string;
   state?: string; // Sigla do estado (ES, SP, RJ)
   neighborhood?: string; // Bairro
@@ -1762,6 +1763,35 @@ ApiService.prototype.sendGroupMessage = async function(groupId: number, content:
     return await this.trpcMutation<{ success: boolean }>('mobile.groups.sendMessage', { groupId, content, userId, replyToId });
   } catch (error) {
     console.error('Send group message error:', error);
+    return { success: false };
+  }
+};
+
+// ==================== SPORT MODALITIES ====================
+
+ApiService.prototype.getAllModalities = async function(): Promise<any[]> {
+  try {
+    return await this.trpcQuery<any[]>('mobile.modalities.getAll', {});
+  } catch (error) {
+    console.error('Get all modalities error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.searchModalities = async function(query: string): Promise<any[]> {
+  try {
+    return await this.trpcQuery<any[]>('mobile.modalities.search', { query });
+  } catch (error) {
+    console.error('Search modalities error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.createModality = async function(data: { name: string; icon?: string; createdBy?: number }): Promise<{ success: boolean; modalityId?: number }> {
+  try {
+    return await this.trpcMutation<{ success: boolean; modalityId: number }>('mobile.modalities.create', data);
+  } catch (error) {
+    console.error('Create modality error:', error);
     return { success: false };
   }
 };
@@ -2682,5 +2712,9 @@ declare module './api' {
     markSocialNotificationRead(id: number): Promise<{ success: boolean }>;
     markAllSocialNotificationsRead(): Promise<{ success: boolean }>;
     getUnreadSocialNotificationsCount(): Promise<number>;
+    // Sport modalities
+    getAllModalities(): Promise<any[]>;
+    searchModalities(query: string): Promise<any[]>;
+    createModality(data: { name: string; icon?: string; createdBy?: number }): Promise<{ success: boolean; modalityId?: number }>;
   }
 }

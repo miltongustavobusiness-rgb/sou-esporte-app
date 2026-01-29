@@ -74,6 +74,7 @@ export default function CreateGroupScreen() {
   // Form state
   const [nome, setNome] = useState('');
   const [modalidade, setModalidade] = useState('');
+  const [modalidadePersonalizada, setModalidadePersonalizada] = useState(''); // Para quando selecionar "Outro"
   const [distanciasSelecionadas, setDistanciasSelecionadas] = useState<string[]>([]);
   const [cidade, setCidade] = useState('');
   const [estado, setEstado] = useState(''); // Sigla do estado (ES, SP, RJ)
@@ -247,12 +248,28 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
+      // Se selecionou "Outro" e digitou uma modalidade personalizada, criar no banco
+      let groupTypeToUse = modalidade;
+      if (modalidade === 'other' && modalidadePersonalizada.trim()) {
+        try {
+          // Criar a nova modalidade no banco
+          const modalityResult = await api.createModality({
+            name: modalidadePersonalizada.trim(),
+            createdBy: user?.id,
+          });
+          console.log('Modalidade personalizada criada:', modalityResult);
+        } catch (err) {
+          console.log('Erro ao criar modalidade (pode já existir):', err);
+        }
+      }
+      
       // Criar grupo via API - passa o userId do usuário logado como ownerId
       const result = await api.createGroup({
         name: nome,
         description: regras || undefined,
         privacy: visibilidade === 'publico' ? 'public' : 'private',
-        groupType: modalidade as any,
+        groupType: groupTypeToUse as any,
+        customModality: modalidade === 'other' ? modalidadePersonalizada.trim() : undefined, // Modalidade personalizada
         city: cidade,
         state: estado || undefined, // Sigla do estado (ES, SP, RJ)
         neighborhood: bairro || undefined, // Bairro
@@ -542,6 +559,9 @@ export default function CreateGroupScreen() {
                 onPress={() => {
                   setModalidade(mod.id);
                   setDistanciasSelecionadas([]);
+                  if (mod.id !== 'other') {
+                    setModalidadePersonalizada('');
+                  }
                 }}
               >
                 <Ionicons
@@ -560,6 +580,18 @@ export default function CreateGroupScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          
+          {/* Campo para modalidade personalizada quando selecionar "Outro" */}
+          {modalidade === 'other' && (
+            <TextInput
+              style={[styles.input, { marginTop: 12 }]}
+              placeholder="Digite o nome da modalidade (ex: Crossfit, Pilates, Surf...)"
+              placeholderTextColor="#666"
+              value={modalidadePersonalizada}
+              onChangeText={setModalidadePersonalizada}
+              autoCapitalize="words"
+            />
+          )}
         </View>
 
         {/* Distâncias (se aplicável) */}

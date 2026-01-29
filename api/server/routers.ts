@@ -1932,6 +1932,49 @@ export const appRouter = router({
           return { success: true, id };
         }),
     }),
+    
+    // ==================== MOBILE MODALITIES SUB-ROUTER ====================
+    modalities: router({
+      // Listar todas as modalidades
+      getAll: publicProcedure
+        .query(async () => {
+          return await db.getAllModalities();
+        }),
+      
+      // Buscar modalidades por termo
+      search: publicProcedure
+        .input(z.object({ query: z.string() }))
+        .query(async ({ input }) => {
+          return await db.searchModalities(input.query);
+        }),
+      
+      // Criar nova modalidade personalizada
+      create: publicProcedure
+        .input(z.object({
+          name: z.string().min(2).max(100),
+          icon: z.string().optional(),
+          createdBy: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          const modalityId = await db.createModality(input);
+          return { success: true, modalityId };
+        }),
+      
+      // Incrementar uso de modalidade
+      incrementUsage: publicProcedure
+        .input(z.object({ slug: z.string() }))
+        .mutation(async ({ input }) => {
+          await db.incrementModalityUsage(input.slug);
+          return { success: true };
+        }),
+      
+      // Inicializar modalidades padrão
+      initDefaults: publicProcedure
+        .mutation(async () => {
+          await db.initDefaultModalities();
+          return { success: true };
+        }),
+    }),
   }),
 
   // ==================== GROUPS V12.10 ====================
