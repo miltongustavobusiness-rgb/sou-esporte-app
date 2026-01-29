@@ -1643,7 +1643,7 @@ ApiService.prototype.getUserGroups = async function(userId?: number): Promise<Gr
 
 ApiService.prototype.getGroup = async function(groupId: number): Promise<Group | null> {
   try {
-    return await this.trpcQuery<Group>('groups.get', { groupId });
+    return await this.trpcQuery<Group>('mobile.groups.getById', { groupId });
   } catch (error) {
     console.error('Get group error:', error);
     return null;
@@ -1674,7 +1674,7 @@ ApiService.prototype.createGroup = async function(data: {
 
 ApiService.prototype.joinGroup = async function(groupId: number): Promise<{ success: boolean }> {
   try {
-    return await this.trpcMutation<{ success: boolean }>('groups.join', { groupId });
+    return await this.trpcMutation<{ success: boolean }>('mobile.groups.join', { groupId });
   } catch (error) {
     console.error('Join group error:', error);
     return { success: false };
@@ -1683,7 +1683,7 @@ ApiService.prototype.joinGroup = async function(groupId: number): Promise<{ succ
 
 ApiService.prototype.leaveGroup = async function(groupId: number): Promise<{ success: boolean }> {
   try {
-    return await this.trpcMutation<{ success: boolean }>('groups.leave', { groupId });
+    return await this.trpcMutation<{ success: boolean }>('mobile.groups.leave', { groupId });
   } catch (error) {
     console.error('Leave group error:', error);
     return { success: false };

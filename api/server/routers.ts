@@ -1904,6 +1904,15 @@ export const appRouter = router({
           return await db.getGroupPosts(input.groupId);
         }),
       
+      // Join group
+      join: publicProcedure
+        .input(z.object({ groupId: z.number(), userId: z.number().optional() }))
+        .mutation(async ({ input }) => {
+          const userId = input.userId || 1;
+          const success = await db.joinGroup(input.groupId, userId);
+          return { success };
+        }),
+      
       // Leave group
       leave: publicProcedure
         .input(z.object({ groupId: z.number(), userId: z.number().optional() }))
