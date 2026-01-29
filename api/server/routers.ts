@@ -1654,7 +1654,8 @@ export const appRouter = router({
           privacy: z.enum(['public', 'private']).default('public'),
           groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'other']).default('running'),
           city: z.string().optional(),
-          state: z.string().optional(),
+          state: z.string().max(2).optional(), // Sigla do estado (ES, SP, RJ)
+          neighborhood: z.string().optional(), // Bairro
           meetingPoint: z.string().optional(),
           requiresApproval: z.boolean().default(false),
           ownerId: z.number().optional(), // Pass userId from mobile
@@ -1668,6 +1669,7 @@ export const appRouter = router({
             groupType: input.groupType,
             city: input.city,
             state: input.state,
+            neighborhood: input.neighborhood,
             meetingPoint: input.meetingPoint,
             requiresApproval: input.requiresApproval,
             ownerId,

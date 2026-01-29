@@ -772,6 +772,7 @@ export const groups = mysqlTable("groups", {
   // Location
   city: varchar("city", { length: 100 }),
   state: varchar("state", { length: 2 }),
+  neighborhood: varchar("neighborhood", { length: 100 }), // Bairro
   
   // Settings
   privacy: mysqlEnum("privacy", ["public", "private"]).default("public").notNull(),

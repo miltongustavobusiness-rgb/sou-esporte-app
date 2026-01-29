@@ -1652,7 +1652,8 @@ ApiService.prototype.createGroup = async function(data: {
   privacy?: 'public' | 'private';
   groupType?: 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other';
   city?: string;
-  state?: string;
+  state?: string; // Sigla do estado (ES, SP, RJ)
+  neighborhood?: string; // Bairro
   meetingPoint?: string;
   requiresApproval?: boolean;
   ownerId?: number;

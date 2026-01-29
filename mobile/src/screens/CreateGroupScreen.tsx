@@ -51,6 +51,22 @@ const PERIODOS_COBRANCA = [
   { id: 'anual', label: 'Anual' },
 ];
 
+// Mapa de estados brasileiros para siglas
+const ESTADOS_BRASIL: { [key: string]: string } = {
+  'acre': 'AC', 'alagoas': 'AL', 'amapá': 'AP', 'amazonas': 'AM', 'bahia': 'BA',
+  'ceará': 'CE', 'distrito federal': 'DF', 'espírito santo': 'ES', 'goiás': 'GO',
+  'maranhão': 'MA', 'mato grosso': 'MT', 'mato grosso do sul': 'MS', 'minas gerais': 'MG',
+  'pará': 'PA', 'paraíba': 'PB', 'paraná': 'PR', 'pernambuco': 'PE', 'piauí': 'PI',
+  'rio de janeiro': 'RJ', 'rio grande do norte': 'RN', 'rio grande do sul': 'RS',
+  'rondônia': 'RO', 'roraima': 'RR', 'santa catarina': 'SC', 'são paulo': 'SP',
+  'sergipe': 'SE', 'tocantins': 'TO',
+};
+
+const getEstadoSigla = (nomeEstado: string): string => {
+  const normalizado = nomeEstado.toLowerCase().trim();
+  return ESTADOS_BRASIL[normalizado] || nomeEstado.slice(0, 2).toUpperCase();
+};
+
 export default function CreateGroupScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useApp();
@@ -60,6 +76,7 @@ export default function CreateGroupScreen() {
   const [modalidade, setModalidade] = useState('');
   const [distanciasSelecionadas, setDistanciasSelecionadas] = useState<string[]>([]);
   const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState(''); // Sigla do estado (ES, SP, RJ)
   const [bairro, setBairro] = useState('');
   const [visibilidade, setVisibilidade] = useState<'publico' | 'privado'>('publico');
   const [fotoCapa, setFotoCapa] = useState<string | null>(null);
@@ -118,14 +135,16 @@ export default function CreateGroupScreen() {
 
         if (addresses && addresses.length > 0) {
           const address = addresses[0];
-          // Preenche cidade e bairro automaticamente
+          // Preenche cidade, estado e bairro automaticamente
           const cidadeObtida = address.city || address.subregion || address.region || '';
+          const estadoObtido = address.region ? getEstadoSigla(address.region) : '';
           const bairroObtido = address.district || address.street || address.name || '';
           
           if (cidadeObtida) setCidade(cidadeObtida);
+          if (estadoObtido) setEstado(estadoObtido);
           if (bairroObtido) setBairro(bairroObtido);
           
-          console.log('Localização obtida:', { cidade: cidadeObtida, bairro: bairroObtido });
+          console.log('Localização obtida:', { cidade: cidadeObtida, estado: estadoObtido, bairro: bairroObtido });
         }
       }
     } catch (error: any) {
@@ -229,15 +248,14 @@ export default function CreateGroupScreen() {
     
     try {
       // Criar grupo via API - passa o userId do usuário logado como ownerId
-      // Nota: state deve ser sigla (ES, SP, RJ), bairro vai no meetingPoint
       const result = await api.createGroup({
         name: nome,
         description: regras || undefined,
         privacy: visibilidade === 'publico' ? 'public' : 'private',
         groupType: modalidade as any,
         city: cidade,
-        // state: não enviamos pois não temos campo de sigla do estado
-        meetingPoint: bairro || undefined, // Bairro vai como ponto de encontro
+        state: estado || undefined, // Sigla do estado (ES, SP, RJ)
+        neighborhood: bairro || undefined, // Bairro
         requiresApproval: aprovarMembrosManualmente,
         ownerId: user?.id, // Usuário logado será o dono do grupo
       });
@@ -584,13 +602,24 @@ export default function CreateGroupScreen() {
               />
             </TouchableOpacity>
           </View>
-          <TextInput
-            style={styles.input}
-            placeholder="Cidade"
-            placeholderTextColor="#666"
-            value={cidade}
-            onChangeText={setCidade}
-          />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <TextInput
+              style={[styles.input, { flex: 2 }]}
+              placeholder="Cidade"
+              placeholderTextColor="#666"
+              value={cidade}
+              onChangeText={setCidade}
+            />
+            <TextInput
+              style={[styles.input, { flex: 1 }]}
+              placeholder="UF"
+              placeholderTextColor="#666"
+              value={estado}
+              onChangeText={(text) => setEstado(text.toUpperCase().slice(0, 2))}
+              maxLength={2}
+              autoCapitalize="characters"
+            />
+          </View>
           <TextInput
             style={[styles.input, { marginTop: 8 }]}
             placeholder="Bairro (opcional)"
