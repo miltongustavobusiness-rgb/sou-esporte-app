@@ -55,7 +55,7 @@ const { width } = Dimensions.get('window');
 
 // Quick Actions para navegação - Ordem conforme solicitação do usuário
 const QUICK_ACTIONS = [
-  { id: 'meus-grupos', icon: 'people', label: 'Meus Grupos', screen: 'MyGroups', color: '#22c55e' },
+  { id: 'criar-grupo', icon: 'add-circle', label: 'Criar Grupo', screen: 'CreateGroup', color: '#22c55e' },
   { id: 'treinar', icon: 'fitness', label: 'Treinar', screen: 'TrainHub', color: '#3b82f6' },
   { id: 'competicoes', icon: 'trophy', label: 'Competições', screen: 'AthleteHome', color: '#fbbf24' },
   { id: 'agenda', icon: 'calendar', label: 'Agenda', screen: 'Agenda', color: '#f97316' },
@@ -71,23 +71,6 @@ const TRAINING_TYPE_CONFIG: { [key: string]: { icon: string; color: string; labe
   swimming: { icon: 'water', color: '#06b6d4', label: 'Natação' },
   brick: { icon: 'fitness', color: '#8b5cf6', label: 'Brick' },
   default: { icon: 'fitness', color: '#a3e635', label: 'Treino' },
-};
-
-// Helper function to validate video URLs
-// Returns true only for valid HTTP/HTTPS URLs
-const isValidVideoUrl = (url: string | null | undefined): boolean => {
-  if (!url || typeof url !== 'string') return false;
-  // Only accept HTTP/HTTPS URLs
-  if (url.startsWith('https://') || url.startsWith('http://')) {
-    return true;
-  }
-  // Reject local file URLs, photo library URLs, etc.
-  if (url.startsWith('file:') || url.startsWith('ph:') || url.startsWith('content:')) {
-    console.warn(`[FeedScreen] ⚠️ Invalid video URL (local): ${url.substring(0, 50)}...`);
-    return false;
-  }
-  console.warn(`[FeedScreen] ⚠️ Invalid video URL (unknown protocol): ${url.substring(0, 50)}...`);
-  return false;
 };
 
 // Interface para lista de vídeos
@@ -399,7 +382,7 @@ const InlineVideoPlayer = ({
 
 export default function FeedScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, activeTraining, updateUser, refreshUser } = useApp();
+  const { user, activeTraining, updateUser } = useApp();
   const { showToast } = useToast();
   
   // State for modals
@@ -496,8 +479,8 @@ export default function FeedScreen() {
     const viewportTop = scrollY;
     const viewportBottom = scrollY + viewportHeight;
     
-    // Get all video posts with valid URLs only
-    const videoPosts = feedPosts.filter((p: any) => isValidVideoUrl(p.videoUrl));
+    // Get all video posts
+    const videoPosts = feedPosts.filter((p: any) => p.videoUrl);
     
     // Calculate visibility for each video
     let currentVideoVisibility = 0; // Visibility of the currently active video
@@ -579,7 +562,7 @@ export default function FeedScreen() {
     
     // If this is the first video and no active video yet, set it as active
     if (activeVideoPostId === null) {
-      const videoPosts = feedPosts.filter((p: any) => isValidVideoUrl(p.videoUrl));
+      const videoPosts = feedPosts.filter((p: any) => p.videoUrl);
       if (videoPosts.length > 0 && videoPosts[0].id === postId) {
         setActiveVideoPostId(postId);
         const playerId = `inline-${postId}`;
@@ -771,13 +754,13 @@ export default function FeedScreen() {
           <Text style={styles.postContent}>{item.content}</Text>
         )}
 
-        {/* Post Image - Show if no video OR if video URL is invalid */}
-        {item.imageUrl && !isValidVideoUrl(item.videoUrl) && (
+        {/* Post Image */}
+        {item.imageUrl && !item.videoUrl && (
           <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
         )}
 
-        {/* Post Video - Only render if URL is valid (HTTP/HTTPS) */}
-        {isValidVideoUrl(item.videoUrl) && (
+        {/* Post Video */}
+        {item.videoUrl && (
           <InlineVideoPlayer 
             videoUrl={item.videoUrl} 
             thumbnailUrl={item.videoThumbnailUrl || item.imageUrl}
@@ -788,7 +771,7 @@ export default function FeedScreen() {
             onMuteToggle={handleGlobalAudioToggle}
             onEnterFullscreen={handleEnterFullscreen}
             videos={feedPosts
-              .filter((p: any) => isValidVideoUrl(p.videoUrl))
+              .filter((p: any) => p.videoUrl)
               .map((p: any) => ({
                 id: p.id,
                 videoUrl: p.videoUrl,
@@ -1104,10 +1087,7 @@ export default function FeedScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.viewToggleBtn, viewMode === 'grid' && styles.viewToggleBtnActive]}
-              onPress={() => {
-                setViewMode('grid');
-                refreshUser(); // Atualizar contadores ao entrar no grid
-              }}
+              onPress={() => setViewMode('grid')}
             >
               <Text style={[styles.viewToggleText, viewMode === 'grid' && styles.viewToggleTextActive]}>Grid</Text>
             </TouchableOpacity>
@@ -1127,7 +1107,7 @@ export default function FeedScreen() {
                 style={styles.postWrapper}
                 onLayout={(event) => {
                   // Track position of video posts for scroll-based focus detection
-                  if (isValidVideoUrl(post.videoUrl)) {
+                  if (post.videoUrl) {
                     handlePostLayout(post.id, event);
                   }
                 }}
@@ -1161,23 +1141,17 @@ export default function FeedScreen() {
                 </View>
                 <View style={styles.gridProfileStats}>
                   <View style={styles.gridStatItem}>
-                    <Text style={styles.gridStatNumber}>{user?.postsCount ?? feedPosts.filter((p: any) => p.authorId === user?.id).length}</Text>
+                    <Text style={styles.gridStatNumber}>{feedPosts.filter((p: any) => p.authorId === user?.id).length}</Text>
                     <Text style={styles.gridStatLabel}>Posts</Text>
                   </View>
-                  <TouchableOpacity 
-                    style={styles.gridStatItem}
-                    onPress={() => navigation.navigate('FollowersList' as any, { userId: user?.id, type: 'followers' })}
-                  >
-                    <Text style={styles.gridStatNumber}>{user?.followersCount ?? 0}</Text>
+                  <View style={styles.gridStatItem}>
+                    <Text style={styles.gridStatNumber}>0</Text>
                     <Text style={styles.gridStatLabel}>Seguidores</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity 
-                    style={styles.gridStatItem}
-                    onPress={() => navigation.navigate('FollowersList' as any, { userId: user?.id, type: 'following' })}
-                  >
-                    <Text style={styles.gridStatNumber}>{user?.followingCount ?? 0}</Text>
+                  </View>
+                  <View style={styles.gridStatItem}>
+                    <Text style={styles.gridStatNumber}>0</Text>
                     <Text style={styles.gridStatLabel}>Seguindo</Text>
-                  </TouchableOpacity>
+                  </View>
                 </View>
               </TouchableOpacity>
               
@@ -1267,8 +1241,8 @@ export default function FeedScreen() {
                     id={post.id}
                     thumbnailUrl={post.videoThumbnailUrl || post.imageUrl}
                     mediaUrl={post.imageUrl}
-                    videoUrl={isValidVideoUrl(post.videoUrl) ? post.videoUrl : undefined}
-                    mediaType={isValidVideoUrl(post.videoUrl) ? 'video' : 'image'}
+                    videoUrl={post.videoUrl}
+                    mediaType={post.videoUrl ? 'video' : 'image'}
                     content={post.content}
                     size={(width - 8) / 3}
                     gap={2}

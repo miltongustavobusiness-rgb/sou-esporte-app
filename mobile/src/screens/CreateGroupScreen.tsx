@@ -18,7 +18,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../types';
-import { api } from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -225,68 +224,45 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
-      // Mapear modalidade para groupType do backend
-      const groupTypeMap: Record<string, 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other'> = {
-        'corrida': 'running',
-        'triathlon': 'triathlon',
-        'bike': 'cycling',
-        'natacao': 'swimming',
-        'funcional': 'fitness',
-        'caminhada_trail': 'trail',
-        'yoga': 'fitness',
-        'lutas': 'fitness',
-        'outro': 'other',
+      // Simular criação do grupo (integrar com API depois)
+      const novoGrupo = {
+        id: Date.now().toString(),
+        nome,
+        modalidade,
+        distancias: distanciasSelecionadas,
+        cidade,
+        bairro,
+        visibilidade,
+        fotoCapa,
+        regras,
+        permitirTreinosPublicos,
+        aprovarMembrosManualmente,
+        membros: 1,
+        isAdmin: true,
+        // Novos campos
+        tipoGrupo,
+        valorMensalidade: tipoGrupo === 'pago' ? parseInt(valorMensalidade) / 100 : 0,
+        periodoCobranca: tipoGrupo === 'pago' ? periodoCobranca : null,
+        instrutor: tipoGrupo === 'pago' ? {
+          nome: nomeInstrutor,
+          especialidade: especialidadeInstrutor,
+          descricao: descricaoInstrutor,
+          foto: fotoInstrutor,
+        } : null,
+        beneficiosComunidade: tipoGrupo === 'pago' ? beneficiosComunidade : null,
       };
 
-      // Criar descrição com informações adicionais
-      let description = regras || '';
-      if (tipoGrupo === 'pago' && beneficiosComunidade) {
-        description += `\n\nBenefícios: ${beneficiosComunidade}`;
-      }
-      if (distanciasSelecionadas.length > 0) {
-        description += `\n\nDistâncias: ${distanciasSelecionadas.join(', ')}`;
-      }
+      console.log('Novo grupo criado:', novoGrupo);
 
-      // Chamar API real para criar grupo
-      const result = await api.createGroup({
-        name: nome.trim(),
-        description: description.trim() || undefined,
-        privacy: visibilidade === 'publico' ? 'public' : 'private',
-        groupType: groupTypeMap[modalidade] || 'other',
-        city: cidade.trim(),
-        state: '', // Pode ser extraído da cidade se necessário
-        meetingPoint: bairro.trim() || undefined,
-        requiresApproval: aprovarMembrosManualmente,
+      // Navegar para o detalhe do grupo como admin
+      navigation.navigate('GroupDetail', { 
+        groupId: novoGrupo.id,
+        groupName: novoGrupo.nome,
+        isAdmin: true,
       });
-
-      if (result.success && result.groupId) {
-        console.log('Grupo criado com sucesso! ID:', result.groupId);
-        
-        // Mostrar mensagem de sucesso
-        Alert.alert(
-          'Sucesso!', 
-          'Grupo criado com sucesso!',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Navegar para o detalhe do grupo como admin
-                navigation.navigate('GroupDetail', { 
-                  groupId: result.groupId!,
-                  groupName: nome.trim(),
-                  isAdmin: true,
-                });
-              }
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Erro', 'Não foi possível criar o grupo. Tente novamente.');
-      }
       
     } catch (error) {
-      console.error('Erro ao criar grupo:', error);
-      Alert.alert('Erro', 'Não foi possível criar o grupo. Verifique sua conexão e tente novamente.');
+      Alert.alert('Erro', 'Não foi possível criar o grupo. Tente novamente.');
     }
     
     setLoading(false);

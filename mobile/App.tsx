@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback, Suspense, lazy, ComponentType } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { View, ActivityIndicator, Text, LogBox } from 'react-native';
+import { View, ActivityIndicator } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { Asset } from 'expo-asset';
 import { RootStackParamList } from './src/types';
@@ -10,234 +10,135 @@ import { FiltersProvider } from './src/contexts/FiltersContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { COLORS } from './src/constants/theme';
 
-// Ignorar warnings que não afetam funcionalidade
-LogBox.ignoreLogs([
-  'Non-serializable values were found in the navigation state',
-  'VirtualizedLists should never be nested',
-]);
-
-// ============================================
-// SCREENS CRÍTICAS - Carregamento Estático
-// Apenas screens necessárias para o boot inicial
-// ============================================
+// Screens
 import SplashScreenComponent from './src/screens/SplashScreen';
 import LoginScreen from './src/screens/LoginScreen';
 import RegisterScreen from './src/screens/RegisterScreen';
+import ForgotPasswordScreen from './src/screens/ForgotPasswordScreen';
+import ResetPasswordScreen from './src/screens/ResetPasswordScreen';
+import ModeSelectionScreen from './src/screens/ModeSelectionScreen';
+import AthleteHomeScreen from './src/screens/AthleteHomeScreen';
+import OrganizerHomeScreen from './src/screens/OrganizerHomeScreen';
+import EventsListScreen from './src/screens/EventsListScreen';
+import EventDetailScreen from './src/screens/EventDetailScreen';
+import ProfileScreen from './src/screens/ProfileScreen';
+import EditProfileScreen from './src/screens/EditProfileScreen';
+import MyRegistrationsScreen from './src/screens/MyRegistrationsScreen';
+import ResultsScreen from './src/screens/ResultsScreen';
+import CertificatesScreen from './src/screens/CertificatesScreen';
+import EventGalleryScreen from './src/screens/EventGalleryScreen';
+import RouteMapScreen from './src/screens/RouteMapScreen';
+import TeamsScreen from './src/screens/TeamsScreen';
+import CreateTeamScreen from './src/screens/CreateTeamScreen';
+import TeamDetailScreen from './src/screens/TeamDetailScreen';
+import TeamRegistrationScreen from './src/screens/TeamRegistrationScreen';
+import OrganizerEventsScreen from './src/screens/OrganizerEventsScreen';
+import OrganizerMetricsScreen from './src/screens/OrganizerMetricsScreen';
+import CreateEventScreen from './src/screens/CreateEventScreen';
+import EditEventScreen from './src/screens/EditEventScreen';
+import VouchersScreen from './src/screens/VouchersScreen';
+import NotificationsScreen from './src/screens/NotificationsScreen';
+import ManageRegistrationsScreen from './src/screens/ManageRegistrationsScreen';
+import PublishResultsScreen from './src/screens/PublishResultsScreen';
+import RegistrationScreen from './src/screens/RegistrationScreen';
+import RankingScreen from './src/screens/RankingScreen';
+import CheckInScreen from './src/screens/CheckInScreen';
+import SettingsScreen from './src/screens/SettingsScreen';
+import SupportScreen from './src/screens/SupportScreen';
+import HelpScreen from './src/screens/HelpScreen';
+import PaymentsScreen from './src/screens/PaymentsScreen';
+import EventResultsScreen from './src/screens/EventResultsScreen';
+import FeedScreen from './src/screens/FeedScreen';
+import CreateGroupScreen from './src/screens/CreateGroupScreen';
+import GroupDetailScreen from './src/screens/GroupDetailScreen';
+import InviteMembersScreen from './src/screens/InviteMembersScreen';
+import TrainHubScreen from './src/screens/TrainHubScreen';
+import DiscoverTrainingsScreen from './src/screens/DiscoverTrainingsScreen';
+import CreateTrainingScreen from './src/screens/CreateTrainingScreen';
+import TrainingDetailScreen from './src/screens/TrainingDetailScreen';
+import ActivitySetupScreen from './src/screens/ActivitySetupScreen';
+import LiveTrainingMapScreen from './src/screens/LiveTrainingMapScreen';
+import TrainingSummaryScreen from './src/screens/TrainingSummaryScreen';
+import AgendaScreen from './src/screens/AgendaScreen';
+import AgendaSettingsScreen from './src/screens/AgendaSettingsScreen';
+import CreatePostScreen from './src/screens/CreatePostScreen';
+import OnboardingScreen from './src/screens/OnboardingScreen';
+import CommentsScreen from './src/screens/CommentsScreen';
+import SavedPostsScreen from './src/screens/SavedPostsScreen';
+import SearchAthletesScreen from './src/screens/SearchAthletesScreen';
+import AthleteProfileScreen from './src/screens/AthleteProfileScreen';
+import MyGridScreen from './src/screens/MyGridScreen';
+import UserGridScreen from './src/screens/UserGridScreen';
+import FollowersListScreen from './src/screens/FollowersListScreen';
+import FollowingListScreen from './src/screens/FollowingListScreen';
+import PostDetailScreen from './src/screens/PostDetailScreen';
+import VideoPlayerScreen from './src/screens/VideoPlayerScreen';
+import GridProfileSetupScreen from './src/screens/GridProfileSetupScreen';
+import SuggestFriendsScreen from './src/screens/SuggestFriendsScreen';
+import ChatScreen from './src/screens/ChatScreen';
+import ChatListScreen from './src/screens/ChatListScreen';
+import FollowRequestsScreen from './src/screens/FollowRequestsScreen';
+import SocialNotificationsScreen from './src/screens/SocialNotificationsScreen';
+import EditGridBioScreen from './src/screens/EditGridBioScreen';
+import AccountRecoveryScreen from './src/screens/AccountRecoveryScreen';
+import EmailVerificationScreen from './src/screens/EmailVerificationScreen';
+// V12.10 - Groups Expanded
+import ManageMembersScreen from './src/screens/ManageMembersScreen';
+import GroupRankingScreen from './src/screens/GroupRankingScreen';
+import GroupChatScreen from './src/screens/GroupChatScreen';
+import CreateFunctionalTrainingScreen from './src/screens/CreateFunctionalTrainingScreen';
+import CreateHikeScreen from './src/screens/CreateHikeScreen';
+import CreateYogaSessionScreen from './src/screens/CreateYogaSessionScreen';
+import CreateFightTrainingScreen from './src/screens/CreateFightTrainingScreen';
 
-// ============================================
-// LAZY LOADING - Screens carregadas sob demanda
-// Evita crash no boot do Expo Go
-// ============================================
-
-// Helper para criar lazy component com fallback
-const lazyScreen = <T extends ComponentType<any>>(
-  importFn: () => Promise<{ default: T }>
-): React.LazyExoticComponent<T> => lazy(importFn);
-
-// Auth Screens (lazy)
-const ForgotPasswordScreen = lazyScreen(() => import('./src/screens/ForgotPasswordScreen'));
-const ResetPasswordScreen = lazyScreen(() => import('./src/screens/ResetPasswordScreen'));
-const AccountRecoveryScreen = lazyScreen(() => import('./src/screens/AccountRecoveryScreen'));
-const EmailVerificationScreen = lazyScreen(() => import('./src/screens/EmailVerificationScreen'));
-const ModeSelectionScreen = lazyScreen(() => import('./src/screens/ModeSelectionScreen'));
-const OnboardingScreen = lazyScreen(() => import('./src/screens/OnboardingScreen'));
-
-// Feed & Social (CRÍTICO - usa expo-video)
-const FeedScreen = lazyScreen(() => import('./src/screens/FeedScreen'));
-const CreatePostScreen = lazyScreen(() => import('./src/screens/CreatePostScreen'));
-const CommentsScreen = lazyScreen(() => import('./src/screens/CommentsScreen'));
-const SavedPostsScreen = lazyScreen(() => import('./src/screens/SavedPostsScreen'));
-const PostDetailScreen = lazyScreen(() => import('./src/screens/PostDetailScreen'));
-const VideoPlayerScreen = lazyScreen(() => import('./src/screens/VideoPlayerScreen'));
-
-// Groups
-const MyGroupsScreen = lazyScreen(() => import('./src/screens/MyGroupsScreen'));
-const CreateGroupScreen = lazyScreen(() => import('./src/screens/CreateGroupScreen'));
-const GroupDetailScreen = lazyScreen(() => import('./src/screens/GroupDetailScreen'));
-const InviteMembersScreen = lazyScreen(() => import('./src/screens/InviteMembersScreen'));
-const ManageMembersScreen = lazyScreen(() => import('./src/screens/ManageMembersScreen'));
-const GroupRankingScreen = lazyScreen(() => import('./src/screens/GroupRankingScreen'));
-const GroupChatScreen = lazyScreen(() => import('./src/screens/GroupChatScreen'));
-
-// Training
-const TrainHubScreen = lazyScreen(() => import('./src/screens/TrainHubScreen'));
-const DiscoverTrainingsScreen = lazyScreen(() => import('./src/screens/DiscoverTrainingsScreen'));
-const CreateTrainingScreen = lazyScreen(() => import('./src/screens/CreateTrainingScreen'));
-const TrainingDetailScreen = lazyScreen(() => import('./src/screens/TrainingDetailScreen'));
-const ActivitySetupScreen = lazyScreen(() => import('./src/screens/ActivitySetupScreen'));
-const LiveTrainingMapScreen = lazyScreen(() => import('./src/screens/LiveTrainingMapScreen'));
-const TrainingSummaryScreen = lazyScreen(() => import('./src/screens/TrainingSummaryScreen'));
-const CreateFunctionalTrainingScreen = lazyScreen(() => import('./src/screens/CreateFunctionalTrainingScreen'));
-const CreateHikeScreen = lazyScreen(() => import('./src/screens/CreateHikeScreen'));
-const CreateYogaSessionScreen = lazyScreen(() => import('./src/screens/CreateYogaSessionScreen'));
-const CreateFightTrainingScreen = lazyScreen(() => import('./src/screens/CreateFightTrainingScreen'));
-
-// Agenda
-const AgendaScreen = lazyScreen(() => import('./src/screens/AgendaScreen'));
-const AgendaSettingsScreen = lazyScreen(() => import('./src/screens/AgendaSettingsScreen'));
-
-// Athlete Screens
-const AthleteHomeScreen = lazyScreen(() => import('./src/screens/AthleteHomeScreen'));
-const EventsListScreen = lazyScreen(() => import('./src/screens/EventsListScreen'));
-const EventDetailScreen = lazyScreen(() => import('./src/screens/EventDetailScreen'));
-const RegistrationScreen = lazyScreen(() => import('./src/screens/RegistrationScreen'));
-const MyRegistrationsScreen = lazyScreen(() => import('./src/screens/MyRegistrationsScreen'));
-const ResultsScreen = lazyScreen(() => import('./src/screens/ResultsScreen'));
-const RankingScreen = lazyScreen(() => import('./src/screens/RankingScreen'));
-const ProfileScreen = lazyScreen(() => import('./src/screens/ProfileScreen'));
-const EditProfileScreen = lazyScreen(() => import('./src/screens/EditProfileScreen'));
-const CertificatesScreen = lazyScreen(() => import('./src/screens/CertificatesScreen'));
-const EventGalleryScreen = lazyScreen(() => import('./src/screens/EventGalleryScreen'));
-const RouteMapScreen = lazyScreen(() => import('./src/screens/RouteMapScreen'));
-
-// Teams
-const TeamsScreen = lazyScreen(() => import('./src/screens/TeamsScreen'));
-const CreateTeamScreen = lazyScreen(() => import('./src/screens/CreateTeamScreen'));
-const TeamDetailScreen = lazyScreen(() => import('./src/screens/TeamDetailScreen'));
-const TeamRegistrationScreen = lazyScreen(() => import('./src/screens/TeamRegistrationScreen'));
-
-// Organizer Screens
-const OrganizerHomeScreen = lazyScreen(() => import('./src/screens/OrganizerHomeScreen'));
-const OrganizerEventsScreen = lazyScreen(() => import('./src/screens/OrganizerEventsScreen'));
-const OrganizerMetricsScreen = lazyScreen(() => import('./src/screens/OrganizerMetricsScreen'));
-const CreateEventScreen = lazyScreen(() => import('./src/screens/CreateEventScreen'));
-const EditEventScreen = lazyScreen(() => import('./src/screens/EditEventScreen'));
-const VouchersScreen = lazyScreen(() => import('./src/screens/VouchersScreen'));
-const NotificationsScreen = lazyScreen(() => import('./src/screens/NotificationsScreen'));
-const ManageRegistrationsScreen = lazyScreen(() => import('./src/screens/ManageRegistrationsScreen'));
-const PublishResultsScreen = lazyScreen(() => import('./src/screens/PublishResultsScreen'));
-const CheckInScreen = lazyScreen(() => import('./src/screens/CheckInScreen'));
-const EventResultsScreen = lazyScreen(() => import('./src/screens/EventResultsScreen'));
-
-// Settings & Support
-const SettingsScreen = lazyScreen(() => import('./src/screens/SettingsScreen'));
-const SupportScreen = lazyScreen(() => import('./src/screens/SupportScreen'));
-const HelpScreen = lazyScreen(() => import('./src/screens/HelpScreen'));
-const PaymentsScreen = lazyScreen(() => import('./src/screens/PaymentsScreen'));
-
-// Social & Profile
-const SearchAthletesScreen = lazyScreen(() => import('./src/screens/SearchAthletesScreen'));
-const AthleteProfileScreen = lazyScreen(() => import('./src/screens/AthleteProfileScreen'));
-const MyGridScreen = lazyScreen(() => import('./src/screens/MyGridScreen'));
-const UserGridScreen = lazyScreen(() => import('./src/screens/UserGridScreen'));
-const FollowersListScreen = lazyScreen(() => import('./src/screens/FollowersListScreen'));
-const FollowingListScreen = lazyScreen(() => import('./src/screens/FollowingListScreen'));
-const GridProfileSetupScreen = lazyScreen(() => import('./src/screens/GridProfileSetupScreen'));
-const SuggestFriendsScreen = lazyScreen(() => import('./src/screens/SuggestFriendsScreen'));
-const ChatScreen = lazyScreen(() => import('./src/screens/ChatScreen'));
-const ChatListScreen = lazyScreen(() => import('./src/screens/ChatListScreen'));
-const FollowRequestsScreen = lazyScreen(() => import('./src/screens/FollowRequestsScreen'));
-const SocialNotificationsScreen = lazyScreen(() => import('./src/screens/SocialNotificationsScreen'));
-const EditGridBioScreen = lazyScreen(() => import('./src/screens/EditGridBioScreen'));
+// Keep the splash screen visible while we fetch resources
+SplashScreen.preventAutoHideAsync();
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
-// ============================================
-// LOADING FALLBACK COMPONENT
-// Exibido enquanto screens são carregadas
-// ============================================
-const ScreenLoadingFallback = () => (
-  <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
-    <ActivityIndicator size="large" color={COLORS.primary} />
-  </View>
-);
-
-// ============================================
-// WRAPPER PARA LAZY SCREENS
-// Adiciona Suspense automaticamente
-// ============================================
-const withSuspense = <P extends object>(
-  LazyComponent: React.LazyExoticComponent<React.ComponentType<P>>
-): React.FC<P> => {
-  return (props: P) => (
-    <Suspense fallback={<ScreenLoadingFallback />}>
-      <LazyComponent {...props} />
-    </Suspense>
-  );
-};
-
 // Pre-load all critical images
 const cacheImages = async () => {
-  try {
-    const images = [
-      require('./assets/images/logo.png'),
-    ];
-    
-    const cachePromises = images.map(image => {
-      return Asset.fromModule(image).downloadAsync();
-    });
-    
-    await Promise.all(cachePromises);
-  } catch (e) {
-    // Silently fail - images will load on demand
-    console.warn('Image cache warning:', e);
-  }
+  const images = [
+    require('./assets/images/logo.png'),
+  ];
+  
+  const cachePromises = images.map(image => {
+    return Asset.fromModule(image).downloadAsync();
+  });
+  
+  await Promise.all(cachePromises);
 };
 
 export default function App() {
   const [appIsReady, setAppIsReady] = useState(false);
-  const [bootError, setBootError] = useState<string | null>(null);
 
   useEffect(() => {
-    let isMounted = true;
-
     async function prepare() {
       try {
-        // Prevent splash screen from hiding (inside useEffect, not top-level)
-        await SplashScreen.preventAutoHideAsync().catch(() => {
-          // Ignore error if splash screen is already hidden
-        });
-
         // Pre-load images
         await cacheImages();
       } catch (e) {
-        console.warn('Error during app preparation:', e);
-        if (isMounted) {
-          setBootError(e instanceof Error ? e.message : 'Unknown error');
-        }
+        console.warn('Error loading assets:', e);
       } finally {
-        if (isMounted) {
-          setAppIsReady(true);
-        }
+        // Tell the application to render
+        setAppIsReady(true);
       }
     }
 
     prepare();
-
-    return () => {
-      isMounted = false;
-    };
   }, []);
 
   const onLayoutRootView = useCallback(async () => {
     if (appIsReady) {
-      try {
-        await SplashScreen.hideAsync();
-      } catch (e) {
-        // Ignore error if splash screen is already hidden
-      }
+      // This tells the splash screen to hide immediately
+      await SplashScreen.hideAsync();
     }
   }, [appIsReady]);
 
-  // Show loading while app prepares
   if (!appIsReady) {
     return (
       <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={COLORS.primary} />
-      </View>
-    );
-  }
-
-  // Show error screen if boot failed
-  if (bootError) {
-    return (
-      <View style={{ flex: 1, backgroundColor: COLORS.background, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
-        <Text style={{ color: '#ff4444', fontSize: 16, textAlign: 'center', marginBottom: 10 }}>
-          Erro ao iniciar o app
-        </Text>
-        <Text style={{ color: '#888', fontSize: 12, textAlign: 'center' }}>
-          {bootError}
-        </Text>
       </View>
     );
   }
@@ -256,9 +157,7 @@ export default function App() {
                 animationDuration: 250,
               }}
             >
-              {/* ============================================ */}
-              {/* AUTH SCREENS - Carregamento Estático */}
-              {/* ============================================ */}
+              {/* Auth Screens - Fade animation */}
               <Stack.Screen 
                 name="Splash" 
                 component={SplashScreenComponent} 
@@ -274,403 +173,300 @@ export default function App() {
                 component={RegisterScreen} 
                 options={{ animation: 'slide_from_bottom' }}
               />
-              
-              {/* ============================================ */}
-              {/* AUTH SCREENS - Lazy Loading */}
-              {/* ============================================ */}
               <Stack.Screen 
                 name="ForgotPassword" 
-                component={withSuspense(ForgotPasswordScreen)} 
+                component={ForgotPasswordScreen} 
                 options={{ animation: 'slide_from_bottom' }}
               />
               <Stack.Screen 
                 name="ResetPassword" 
-                component={withSuspense(ResetPasswordScreen)} 
+                component={ResetPasswordScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="AccountRecovery" 
-                component={withSuspense(AccountRecoveryScreen)} 
+                component={AccountRecoveryScreen} 
                 options={{ animation: 'slide_from_bottom' }}
               />
               <Stack.Screen 
                 name="EmailVerification" 
-                component={withSuspense(EmailVerificationScreen)} 
+                component={EmailVerificationScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="ModeSelection" 
-                component={withSuspense(ModeSelectionScreen)} 
+                component={ModeSelectionScreen} 
                 options={{ animation: 'fade' }}
               />
               <Stack.Screen 
                 name="Onboarding" 
-                component={withSuspense(OnboardingScreen)} 
+                component={OnboardingScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               
-              {/* ============================================ */}
-              {/* FEED & SOCIAL - Lazy (usa expo-video) */}
-              {/* ============================================ */}
+              {/* Feed Screen - Tela inicial após login */}
               <Stack.Screen 
                 name="Feed" 
-                component={withSuspense(FeedScreen)} 
+                component={FeedScreen} 
+                options={{ animation: 'fade' }}
+              />
+              
+              {/* Community Stack - Grupos */}
+              <Stack.Screen 
+                name="CreateGroup" 
+                component={CreateGroupScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="GroupDetail" 
+                component={GroupDetailScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="InviteMembers" 
+                component={InviteMembersScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              {/* V12.10 - Groups Expanded */}
+              <Stack.Screen 
+                name="ManageMembers" 
+                component={ManageMembersScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="GroupRanking" 
+                component={GroupRankingScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="GroupChat" 
+                component={GroupChatScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="CreateFunctionalTraining" 
+                component={CreateFunctionalTrainingScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="CreateHike" 
+                component={CreateHikeScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="CreateYogaSession" 
+                component={CreateYogaSessionScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="CreateFightTraining" 
+                component={CreateFightTrainingScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              
+              {/* Training Stack - Sistema de Treino */}
+              <Stack.Screen 
+                name="TrainHub" 
+                component={TrainHubScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="DiscoverTrainings" 
+                component={DiscoverTrainingsScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="CreateTraining" 
+                component={CreateTrainingScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="TrainingDetail" 
+                component={TrainingDetailScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="ActivitySetup" 
+                component={ActivitySetupScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="LiveTrainingMap" 
+                component={LiveTrainingMapScreen} 
                 options={{ animation: 'fade' }}
               />
               <Stack.Screen 
+                name="TrainingSummary" 
+                component={TrainingSummaryScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              
+              {/* Agenda Stack - Calendário Unificado */}
+              <Stack.Screen 
+                name="Agenda" 
+                component={AgendaScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="AgendaSettings" 
+                component={AgendaSettingsScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
                 name="CreatePost" 
-                component={withSuspense(CreatePostScreen)} 
+                component={CreatePostScreen} 
                 options={{ animation: 'slide_from_bottom' }}
               />
               <Stack.Screen 
                 name="Comments" 
-                component={withSuspense(CommentsScreen)} 
+                component={CommentsScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              
+              {/* Athlete Screens - Slide animations */}
+              <Stack.Screen 
+                name="AthleteHome" 
+                component={AthleteHomeScreen} 
+                options={{ animation: 'fade' }}
+              />
+              <Stack.Screen name="EventsList" component={EventsListScreen} />
+              <Stack.Screen name="EventDetail" component={EventDetailScreen} />
+              <Stack.Screen 
+                name="Registration" 
+                component={RegistrationScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen name="MyRegistrations" component={MyRegistrationsScreen} />
+              <Stack.Screen name="Results" component={ResultsScreen} />
+              <Stack.Screen name="Ranking" component={RankingScreen} />
+              <Stack.Screen name="Profile" component={ProfileScreen} />
+              <Stack.Screen 
+                name="EditProfile" 
+                component={EditProfileScreen} 
                 options={{ animation: 'slide_from_bottom' }}
               />
               <Stack.Screen 
                 name="SavedPosts" 
-                component={withSuspense(SavedPostsScreen)} 
+                component={SavedPostsScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen name="Certificates" component={CertificatesScreen} />
+              <Stack.Screen name="EventGallery" component={EventGalleryScreen} />
+              <Stack.Screen name="RouteMap" component={RouteMapScreen} />
+              
+              {/* Team Screens */}
+              <Stack.Screen name="Teams" component={TeamsScreen} />
+              <Stack.Screen 
+                name="CreateTeam" 
+                component={CreateTeamScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen name="TeamDetail" component={TeamDetailScreen} />
+              <Stack.Screen 
+                name="TeamRegistration" 
+                component={TeamRegistrationScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              
+              {/* Organizer Screens */}
+              <Stack.Screen 
+                name="OrganizerHome" 
+                component={OrganizerHomeScreen} 
+                options={{ animation: 'fade' }}
+              />
+              <Stack.Screen name="OrganizerEvents" component={OrganizerEventsScreen} />
+              <Stack.Screen name="OrganizerMetrics" component={OrganizerMetricsScreen} />
+              <Stack.Screen 
+                name="CreateEvent" 
+                component={CreateEventScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="EditEvent" 
+                component={EditEventScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen name="Vouchers" component={VouchersScreen} />
+              <Stack.Screen name="Notifications" component={NotificationsScreen} />
+              <Stack.Screen name="ManageRegistrations" component={ManageRegistrationsScreen} />
+              <Stack.Screen name="PublishResults" component={PublishResultsScreen} />
+              <Stack.Screen name="CheckIn" component={CheckInScreen} />
+              <Stack.Screen name="Settings" component={SettingsScreen} />
+              <Stack.Screen name="Support" component={SupportScreen} />
+              <Stack.Screen name="Help" component={HelpScreen} />
+              <Stack.Screen name="Payments" component={PaymentsScreen} />
+              <Stack.Screen name="EventResults" component={EventResultsScreen} />
+              <Stack.Screen name="SearchAthletes" component={SearchAthletesScreen} />
+              <Stack.Screen name="AthleteProfile" component={AthleteProfileScreen} />
+              
+              {/* Profile Grid Screens */}
+              <Stack.Screen 
+                name="MyGrid" 
+                component={MyGridScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="UserGrid" 
+                component={UserGridScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="FollowersList" 
+                component={FollowersListScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="FollowingList" 
+                component={FollowingListScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="PostDetail" 
-                component={withSuspense(PostDetailScreen)} 
+                component={PostDetailScreen} 
                 options={{ animation: 'slide_from_bottom' }}
               />
               <Stack.Screen 
                 name="VideoPlayer" 
-                component={withSuspense(VideoPlayerScreen)} 
+                component={VideoPlayerScreen} 
                 options={{ 
                   animation: 'fade',
                   headerShown: false,
                   presentation: 'fullScreenModal'
                 }}
               />
-              
-              {/* ============================================ */}
-              {/* GROUPS - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="MyGroups" 
-                component={withSuspense(MyGroupsScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="CreateGroup" 
-                component={withSuspense(CreateGroupScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="GroupDetail" 
-                component={withSuspense(GroupDetailScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="InviteMembers" 
-                component={withSuspense(InviteMembersScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="ManageMembers" 
-                component={withSuspense(ManageMembersScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="GroupRanking" 
-                component={withSuspense(GroupRankingScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="GroupChat" 
-                component={withSuspense(GroupChatScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              
-              {/* ============================================ */}
-              {/* TRAINING - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="TrainHub" 
-                component={withSuspense(TrainHubScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="DiscoverTrainings" 
-                component={withSuspense(DiscoverTrainingsScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="CreateTraining" 
-                component={withSuspense(CreateTrainingScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="TrainingDetail" 
-                component={withSuspense(TrainingDetailScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="ActivitySetup" 
-                component={withSuspense(ActivitySetupScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="LiveTrainingMap" 
-                component={withSuspense(LiveTrainingMapScreen)} 
-                options={{ animation: 'fade' }}
-              />
-              <Stack.Screen 
-                name="TrainingSummary" 
-                component={withSuspense(TrainingSummaryScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="CreateFunctionalTraining" 
-                component={withSuspense(CreateFunctionalTrainingScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="CreateHike" 
-                component={withSuspense(CreateHikeScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="CreateYogaSession" 
-                component={withSuspense(CreateYogaSessionScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="CreateFightTraining" 
-                component={withSuspense(CreateFightTrainingScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              
-              {/* ============================================ */}
-              {/* AGENDA - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="Agenda" 
-                component={withSuspense(AgendaScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="AgendaSettings" 
-                component={withSuspense(AgendaSettingsScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              
-              {/* ============================================ */}
-              {/* ATHLETE SCREENS - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="AthleteHome" 
-                component={withSuspense(AthleteHomeScreen)} 
-                options={{ animation: 'fade' }}
-              />
-              <Stack.Screen 
-                name="EventsList" 
-                component={withSuspense(EventsListScreen)} 
-              />
-              <Stack.Screen 
-                name="EventDetail" 
-                component={withSuspense(EventDetailScreen)} 
-              />
-              <Stack.Screen 
-                name="Registration" 
-                component={withSuspense(RegistrationScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="MyRegistrations" 
-                component={withSuspense(MyRegistrationsScreen)} 
-              />
-              <Stack.Screen 
-                name="Results" 
-                component={withSuspense(ResultsScreen)} 
-              />
-              <Stack.Screen 
-                name="Ranking" 
-                component={withSuspense(RankingScreen)} 
-              />
-              <Stack.Screen 
-                name="Profile" 
-                component={withSuspense(ProfileScreen)} 
-              />
-              <Stack.Screen 
-                name="EditProfile" 
-                component={withSuspense(EditProfileScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="Certificates" 
-                component={withSuspense(CertificatesScreen)} 
-              />
-              <Stack.Screen 
-                name="EventGallery" 
-                component={withSuspense(EventGalleryScreen)} 
-              />
-              <Stack.Screen 
-                name="RouteMap" 
-                component={withSuspense(RouteMapScreen)} 
-              />
-              
-              {/* ============================================ */}
-              {/* TEAMS - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="Teams" 
-                component={withSuspense(TeamsScreen)} 
-              />
-              <Stack.Screen 
-                name="CreateTeam" 
-                component={withSuspense(CreateTeamScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="TeamDetail" 
-                component={withSuspense(TeamDetailScreen)} 
-              />
-              <Stack.Screen 
-                name="TeamRegistration" 
-                component={withSuspense(TeamRegistrationScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              
-              {/* ============================================ */}
-              {/* ORGANIZER SCREENS - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="OrganizerHome" 
-                component={withSuspense(OrganizerHomeScreen)} 
-                options={{ animation: 'fade' }}
-              />
-              <Stack.Screen 
-                name="OrganizerEvents" 
-                component={withSuspense(OrganizerEventsScreen)} 
-              />
-              <Stack.Screen 
-                name="OrganizerMetrics" 
-                component={withSuspense(OrganizerMetricsScreen)} 
-              />
-              <Stack.Screen 
-                name="CreateEvent" 
-                component={withSuspense(CreateEventScreen)} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="EditEvent" 
-                component={withSuspense(EditEventScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="Vouchers" 
-                component={withSuspense(VouchersScreen)} 
-              />
-              <Stack.Screen 
-                name="Notifications" 
-                component={withSuspense(NotificationsScreen)} 
-              />
-              <Stack.Screen 
-                name="ManageRegistrations" 
-                component={withSuspense(ManageRegistrationsScreen)} 
-              />
-              <Stack.Screen 
-                name="PublishResults" 
-                component={withSuspense(PublishResultsScreen)} 
-              />
-              <Stack.Screen 
-                name="CheckIn" 
-                component={withSuspense(CheckInScreen)} 
-              />
-              <Stack.Screen 
-                name="EventResults" 
-                component={withSuspense(EventResultsScreen)} 
-              />
-              
-              {/* ============================================ */}
-              {/* SETTINGS & SUPPORT - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="Settings" 
-                component={withSuspense(SettingsScreen)} 
-              />
-              <Stack.Screen 
-                name="Support" 
-                component={withSuspense(SupportScreen)} 
-              />
-              <Stack.Screen 
-                name="Help" 
-                component={withSuspense(HelpScreen)} 
-              />
-              <Stack.Screen 
-                name="Payments" 
-                component={withSuspense(PaymentsScreen)} 
-              />
-              
-              {/* ============================================ */}
-              {/* SOCIAL & PROFILE - Lazy */}
-              {/* ============================================ */}
-              <Stack.Screen 
-                name="SearchAthletes" 
-                component={withSuspense(SearchAthletesScreen)} 
-              />
-              <Stack.Screen 
-                name="AthleteProfile" 
-                component={withSuspense(AthleteProfileScreen)} 
-              />
-              <Stack.Screen 
-                name="MyGrid" 
-                component={withSuspense(MyGridScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="UserGrid" 
-                component={withSuspense(UserGridScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="FollowersList" 
-                component={withSuspense(FollowersListScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="FollowingList" 
-                component={withSuspense(FollowingListScreen)} 
-                options={{ animation: 'slide_from_right' }}
-              />
               <Stack.Screen 
                 name="GridProfileSetup" 
-                component={withSuspense(GridProfileSetupScreen)} 
+                component={GridProfileSetupScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="SuggestFriends" 
-                component={withSuspense(SuggestFriendsScreen)} 
+                component={SuggestFriendsScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="Chat" 
-                component={withSuspense(ChatScreen)} 
+                component={ChatScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="ChatList" 
-                component={withSuspense(ChatListScreen)} 
+                component={ChatListScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="FollowRequests" 
-                component={withSuspense(FollowRequestsScreen)} 
+                component={FollowRequestsScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="SocialNotifications" 
-                component={withSuspense(SocialNotificationsScreen)} 
+                component={SocialNotificationsScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
               <Stack.Screen 
                 name="EditGridBio" 
-                component={withSuspense(EditGridBioScreen)} 
+                component={EditGridBioScreen} 
                 options={{ animation: 'slide_from_right' }}
               />
             </Stack.Navigator>
