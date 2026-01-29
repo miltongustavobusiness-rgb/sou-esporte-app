@@ -1646,6 +1646,35 @@ export const appRouter = router({
     
     // ==================== MOBILE GROUPS SUB-ROUTER ====================
     groups: router({
+      // Create group (public for mobile)
+      create: publicProcedure
+        .input(z.object({
+          name: z.string().min(3).max(100),
+          description: z.string().max(1000).optional(),
+          privacy: z.enum(['public', 'private']).default('public'),
+          groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'other']).default('running'),
+          city: z.string().optional(),
+          state: z.string().optional(),
+          meetingPoint: z.string().optional(),
+          requiresApproval: z.boolean().default(false),
+          ownerId: z.number().optional(), // Pass userId from mobile
+        }))
+        .mutation(async ({ input }) => {
+          const ownerId = input.ownerId || 1; // Default to user 1 for testing
+          const groupId = await db.createGroup({
+            name: input.name,
+            description: input.description,
+            privacy: input.privacy,
+            groupType: input.groupType,
+            city: input.city,
+            state: input.state,
+            meetingPoint: input.meetingPoint,
+            requiresApproval: input.requiresApproval,
+            ownerId,
+          });
+          return { success: true, groupId };
+        }),
+      
       // Get group by ID
       getById: publicProcedure
         .input(z.object({ groupId: z.number() }))

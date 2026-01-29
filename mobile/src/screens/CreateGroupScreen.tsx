@@ -53,6 +53,7 @@ const PERIODOS_COBRANCA = [
 
 export default function CreateGroupScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useApp();
   
   // Form state
   const [nome, setNome] = useState('');
@@ -227,7 +228,7 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
-      // Criar grupo via API
+      // Criar grupo via API - passa o userId do usuário logado como ownerId
       const result = await api.createGroup({
         name: nome,
         description: regras || undefined,
@@ -236,6 +237,7 @@ export default function CreateGroupScreen() {
         city: cidade,
         state: bairro || undefined,
         requiresApproval: aprovarMembrosManualmente,
+        ownerId: user?.id, // Usuário logado será o dono do grupo
       });
 
       if (!result.success || !result.groupId) {

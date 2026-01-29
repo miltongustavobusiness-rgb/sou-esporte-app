@@ -1655,9 +1655,11 @@ ApiService.prototype.createGroup = async function(data: {
   state?: string;
   meetingPoint?: string;
   requiresApproval?: boolean;
+  ownerId?: number;
 }): Promise<{ success: boolean; groupId?: number }> {
   try {
-    return await this.trpcMutation<{ success: boolean; groupId: number }>('groups.create', data);
+    // Usa mobile.groups.create que é público
+    return await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.groups.create', data);
   } catch (error) {
     console.error('Create group error:', error);
     return { success: false };
