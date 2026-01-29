@@ -1643,6 +1643,264 @@ export const appRouter = router({
           loginProvider: user.loginMethod || 'email', // Use existing loginMethod field
         };
       }),
+    
+    // ==================== MOBILE GROUPS SUB-ROUTER ====================
+    groups: router({
+      // Get group by ID
+      getById: publicProcedure
+        .input(z.object({ groupId: z.number() }))
+        .query(async ({ input }) => {
+          const group = await db.getGroupById(input.groupId);
+          if (!group) throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
+          return group;
+        }),
+      
+      // Get user membership in group
+      getMembership: publicProcedure
+        .input(z.object({ groupId: z.number(), userId: z.number().optional() }))
+        .query(async ({ input }) => {
+          if (!input.userId) return null;
+          return await db.getGroupMembership(input.groupId, input.userId);
+        }),
+      
+      // Get group members
+      getMembers: publicProcedure
+        .input(z.object({ groupId: z.number() }))
+        .query(async ({ input }) => {
+          return await db.getGroupMembers(input.groupId);
+        }),
+      
+      // Search users to invite
+      searchUsersToInvite: publicProcedure
+        .input(z.object({ groupId: z.number(), query: z.string() }))
+        .query(async ({ input }) => {
+          return await db.searchUsersNotInGroup(input.groupId, input.query);
+        }),
+      
+      // Invite user to group
+      inviteUser: publicProcedure
+        .input(z.object({ groupId: z.number(), userId: z.number(), invitedBy: z.number().optional() }))
+        .mutation(async ({ input }) => {
+          const inviteId = await db.createGroupInvite({
+            groupId: input.groupId,
+            invitedUserId: input.userId,
+            invitedBy: input.invitedBy || 1,
+          });
+          return { success: true, inviteId };
+        }),
+      
+      // Update member role/permissions
+      updateMember: publicProcedure
+        .input(z.object({
+          groupId: z.number(),
+          userId: z.number(),
+          role: z.enum(['admin', 'moderator', 'member']).optional(),
+          canCreateTraining: z.boolean().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          await db.updateGroupMember(input.groupId, input.userId, {
+            role: input.role,
+            canCreateTraining: input.canCreateTraining,
+          });
+          return { success: true };
+        }),
+      
+      // Remove member from group
+      removeMember: publicProcedure
+        .input(z.object({ groupId: z.number(), userId: z.number() }))
+        .mutation(async ({ input }) => {
+          await db.removeGroupMember(input.groupId, input.userId);
+          return { success: true };
+        }),
+      
+      // Get group ranking
+      getRanking: publicProcedure
+        .input(z.object({ 
+          groupId: z.number(), 
+          modality: z.string().optional(),
+          period: z.string().optional() 
+        }))
+        .query(async ({ input }) => {
+          return await db.getGroupRanking(input.groupId, input.modality || 'geral');
+        }),
+      
+      // Get group trainings (all types)
+      getTrainings: publicProcedure
+        .input(z.object({ groupId: z.number() }))
+        .query(async ({ input }) => {
+          const [functional, hikes, yoga, fights] = await Promise.all([
+            db.getFunctionalTrainings(input.groupId),
+            db.getHikes(input.groupId),
+            db.getYogaSessions(input.groupId),
+            db.getFightTrainings(input.groupId),
+          ]);
+          return [
+            ...functional.map(t => ({ ...t, trainingType: 'functional' })),
+            ...hikes.map(t => ({ ...t, trainingType: 'hike' })),
+            ...yoga.map(t => ({ ...t, trainingType: 'yoga' })),
+            ...fights.map(t => ({ ...t, trainingType: 'fight' })),
+          ].sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime());
+        }),
+      
+      // Join training
+      joinTraining: publicProcedure
+        .input(z.object({ 
+          trainingId: z.number(), 
+          trainingType: z.string(),
+          response: z.enum(['going', 'maybe', 'not_going']),
+          userId: z.number().optional()
+        }))
+        .mutation(async ({ input }) => {
+          const userId = input.userId || 1;
+          switch (input.trainingType) {
+            case 'functional':
+              await db.joinFunctionalTraining(input.trainingId, userId, input.response);
+              break;
+            case 'hike':
+              await db.joinHike(input.trainingId, userId, input.response);
+              break;
+            case 'yoga':
+              await db.joinYogaSession(input.trainingId, userId, input.response);
+              break;
+            case 'fight':
+              await db.joinFightTraining(input.trainingId, userId, input.response);
+              break;
+          }
+          return { success: true };
+        }),
+      
+      // Get group messages (chat)
+      getMessages: publicProcedure
+        .input(z.object({ groupId: z.number(), limit: z.number().optional() }))
+        .query(async ({ input }) => {
+          return await db.getGroupMessages(input.groupId, input.limit || 50);
+        }),
+      
+      // Send message to group chat
+      sendMessage: publicProcedure
+        .input(z.object({ 
+          groupId: z.number(), 
+          content: z.string(),
+          userId: z.number().optional(),
+          replyToId: z.number().optional()
+        }))
+        .mutation(async ({ input }) => {
+          const messageId = await db.sendGroupMessage({
+            groupId: input.groupId,
+            userId: input.userId || 1,
+            content: input.content,
+            replyToId: input.replyToId,
+          });
+          return { success: true, messageId };
+        }),
+      
+      // Get group posts
+      getPosts: publicProcedure
+        .input(z.object({ groupId: z.number() }))
+        .query(async ({ input }) => {
+          // Get posts for this group from the feed
+          return await db.getGroupPosts(input.groupId);
+        }),
+      
+      // Leave group
+      leave: publicProcedure
+        .input(z.object({ groupId: z.number(), userId: z.number().optional() }))
+        .mutation(async ({ input }) => {
+          const userId = input.userId || 1;
+          const success = await db.leaveGroup(input.groupId, userId);
+          return { success };
+        }),
+      
+      // Create functional training
+      createFunctionalTraining: publicProcedure
+        .input(z.object({
+          groupId: z.number(),
+          title: z.string(),
+          description: z.string().optional(),
+          trainingType: z.enum(['halteres', 'peso_corporal', 'kettlebell', 'misto']).optional(),
+          focus: z.enum(['forca', 'resistencia', 'mobilidade', 'circuito']).optional(),
+          durationMinutes: z.number().optional(),
+          scheduledAt: z.string(),
+          meetingPoint: z.string().optional(),
+          maxParticipants: z.number().optional(),
+          createdBy: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          const id = await db.createFunctionalTraining({
+            ...input,
+            scheduledAt: new Date(input.scheduledAt),
+            createdBy: input.createdBy || 1,
+          });
+          return { success: true, id };
+        }),
+      
+      // Create hike
+      createHike: publicProcedure
+        .input(z.object({
+          groupId: z.number(),
+          title: z.string(),
+          description: z.string().optional(),
+          trailType: z.enum(['urbano', 'trilha_leve', 'trilha_moderada', 'trilha_avancada']).optional(),
+          distanceKm: z.number().optional(),
+          durationMinutes: z.number().optional(),
+          scheduledAt: z.string(),
+          meetingPoint: z.string().optional(),
+          maxParticipants: z.number().optional(),
+          createdBy: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          const id = await db.createHike({
+            ...input,
+            scheduledAt: new Date(input.scheduledAt),
+            createdBy: input.createdBy || 1,
+          });
+          return { success: true, id };
+        }),
+      
+      // Create yoga session
+      createYogaSession: publicProcedure
+        .input(z.object({
+          groupId: z.number(),
+          title: z.string(),
+          description: z.string().optional(),
+          yogaStyle: z.string().optional(),
+          durationMinutes: z.number().optional(),
+          scheduledAt: z.string(),
+          meetingPoint: z.string().optional(),
+          maxParticipants: z.number().optional(),
+          createdBy: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          const id = await db.createYogaSession({
+            ...input,
+            scheduledAt: new Date(input.scheduledAt),
+            createdBy: input.createdBy || 1,
+          });
+          return { success: true, id };
+        }),
+      
+      // Create fight training
+      createFightTraining: publicProcedure
+        .input(z.object({
+          groupId: z.number(),
+          title: z.string(),
+          description: z.string().optional(),
+          fightStyle: z.string().optional(),
+          durationMinutes: z.number().optional(),
+          scheduledAt: z.string(),
+          meetingPoint: z.string().optional(),
+          maxParticipants: z.number().optional(),
+          createdBy: z.number().optional(),
+        }))
+        .mutation(async ({ input }) => {
+          const id = await db.createFightTraining({
+            ...input,
+            scheduledAt: new Date(input.scheduledAt),
+            createdBy: input.createdBy || 1,
+          });
+          return { success: true, id };
+        }),
+    }),
   }),
 
   // ==================== GROUPS V12.10 ====================

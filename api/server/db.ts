@@ -5762,3 +5762,9 @@ export async function deleteGroupMessage(messageId: number, deletedBy: number): 
     } as any)
     .where(eq(groupMessages.id, messageId));
 }
+
+// ==================== GROUP POSTS ====================
+
+export async function getGroupPosts(groupId: number, limit: number = 20, offset: number = 0): Promise<any[]> {
+  return getFeedPosts({ groupId, limit, offset });
+}

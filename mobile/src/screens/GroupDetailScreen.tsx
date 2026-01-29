@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,36 +10,34 @@ import {
   RefreshControl,
   ActivityIndicator,
   Modal,
-  Dimensions,
+  FlatList,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
-import { apiRequest } from '../config/api';
+import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { useApp } from '../contexts/AppContext';
+import { api } from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'GroupDetail'>;
 
-type TabType = 'feed' | 'treinos' | 'ranking' | 'chat';
-
-const { width } = Dimensions.get('window');
+type TabType = 'feed' | 'treinos' | 'membros';
 
 interface GroupData {
   id: number;
   name: string;
-  description: string;
-  type: string;
-  coverImageUrl: string | null;
+  description: string | null;
+  groupType: string;
+  coverUrl: string | null;
+  logoUrl: string | null;
   memberCount: number;
-  city: string;
-  neighborhood: string;
-  visibility: string;
-  rules: string;
-  requiresApproval: boolean;
+  city: string | null;
+  state: string | null;
+  privacy: string;
   ownerId: number;
-  createdAt: string;
 }
 
 interface MembershipData {
@@ -48,28 +46,38 @@ interface MembershipData {
   status: string;
 }
 
-const MODALITY_ICONS: Record<string, { icon: string; color: string }> = {
-  corrida: { icon: 'walk-outline', color: '#2196F3' },
-  triathlon: { icon: 'bicycle-outline', color: '#FF5722' },
-  bike: { icon: 'bicycle-outline', color: '#4CAF50' },
-  natacao: { icon: 'water-outline', color: '#00BCD4' },
-  funcional: { icon: 'barbell-outline', color: '#FF5722' },
-  caminhada_trail: { icon: 'trail-sign-outline', color: '#4CAF50' },
-  yoga: { icon: 'body-outline', color: '#9C27B0' },
-  lutas: { icon: 'hand-left-outline', color: '#F44336' },
-  outro: { icon: 'fitness-outline', color: '#607D8B' },
+interface Member {
+  id: number;
+  userId: number;
+  role: string;
+  user: {
+    id: number;
+    name: string;
+    photoUrl: string | null;
+  };
+}
+
+const GROUP_TYPE_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
+  running: { icon: 'walk', color: '#3b82f6', label: 'Corrida' },
+  cycling: { icon: 'bicycle', color: '#22c55e', label: 'Ciclismo' },
+  triathlon: { icon: 'medal', color: '#f59e0b', label: 'Triathlon' },
+  trail: { icon: 'leaf', color: '#84cc16', label: 'Trail' },
+  swimming: { icon: 'water', color: '#06b6d4', label: 'Natação' },
+  fitness: { icon: 'barbell', color: '#ef4444', label: 'Funcional' },
+  other: { icon: 'fitness', color: '#8b5cf6', label: 'Outro' },
 };
 
-const TRAINING_TYPE_SCREENS: Record<string, string> = {
-  funcional: 'CreateFunctionalTraining',
-  caminhada_trail: 'CreateHike',
-  yoga: 'CreateYogaSession',
-  lutas: 'CreateFightTraining',
+const ROLE_CONFIG: Record<string, { label: string; color: string }> = {
+  owner: { label: 'Dono', color: '#fbbf24' },
+  admin: { label: 'Admin', color: '#22c55e' },
+  moderator: { label: 'Moderador', color: '#3b82f6' },
+  member: { label: 'Membro', color: '#94a3b8' },
 };
 
 export default function GroupDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
+  const { user } = useApp();
   const { groupId, groupName, isAdmin } = route.params || { 
     groupId: 0, 
     groupName: 'Grupo',
@@ -79,34 +87,46 @@ export default function GroupDetailScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('feed');
   const [group, setGroup] = useState<GroupData | null>(null);
   const [membership, setMembership] = useState<MembershipData | null>(null);
+  const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [trainings, setTrainings] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
+  const [showTrainingModal, setShowTrainingModal] = useState(false);
 
   const canManage = membership?.role === 'owner' || membership?.role === 'admin';
   const canCreateTraining = canManage || membership?.canCreateTraining;
+  const typeConfig = GROUP_TYPE_CONFIG[group?.groupType || 'other'] || GROUP_TYPE_CONFIG.other;
 
   const loadGroupData = useCallback(async () => {
     try {
-      const [groupResult, membershipResult] = await Promise.all([
-        apiRequest('groups.getById', { groupId }),
-        apiRequest('groups.getMembership', { groupId }),
-      ]);
+      const groupResult = await api.getGroup(groupId);
       setGroup(groupResult);
-      setMembership(membershipResult);
+      
+      if (user?.id) {
+        const membershipResult = await api.getGroupMembership(groupId, user.id);
+        setMembership(membershipResult);
+      }
     } catch (error) {
       console.error('Error loading group:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
+  }, [groupId, user?.id]);
+
+  const loadMembers = useCallback(async () => {
+    try {
+      const result = await api.getGroupMembers(groupId);
+      setMembers(result || []);
+    } catch (error) {
+      console.error('Error loading members:', error);
+    }
   }, [groupId]);
 
   const loadTrainings = useCallback(async () => {
     try {
-      const result = await apiRequest('groups.getTrainings', { groupId });
+      const result = await api.getGroupTrainings(groupId);
       setTrainings(result || []);
     } catch (error) {
       console.error('Error loading trainings:', error);
@@ -115,7 +135,7 @@ export default function GroupDetailScreen() {
 
   const loadPosts = useCallback(async () => {
     try {
-      const result = await apiRequest('groups.getPosts', { groupId });
+      const result = await api.getGroupPosts(groupId);
       setPosts(result || []);
     } catch (error) {
       console.error('Error loading posts:', error);
@@ -124,41 +144,17 @@ export default function GroupDetailScreen() {
 
   useEffect(() => {
     loadGroupData();
+    loadMembers();
     loadTrainings();
     loadPosts();
-  }, [loadGroupData, loadTrainings, loadPosts]);
+  }, [loadGroupData, loadMembers, loadTrainings, loadPosts]);
 
   const handleRefresh = () => {
     setRefreshing(true);
     loadGroupData();
+    loadMembers();
     loadTrainings();
     loadPosts();
-  };
-
-  const handleCreateTraining = (type: string) => {
-    setShowTrainingModal(false);
-    const screenName = TRAINING_TYPE_SCREENS[type] || 'CreateTraining';
-    navigation.navigate(screenName as any, { 
-      groupId, 
-      groupName: group?.name || groupName,
-      groupType: group?.type,
-    });
-  };
-
-  const handleNavigateToMembers = () => {
-    navigation.navigate('ManageMembers', {
-      groupId,
-      groupName: group?.name || groupName,
-      userRole: membership?.role || 'member',
-    });
-  };
-
-  const handleNavigateToRanking = () => {
-    navigation.navigate('GroupRanking', {
-      groupId,
-      groupName: group?.name || groupName,
-      groupType: group?.type || 'corrida',
-    });
   };
 
   const handleNavigateToChat = () => {
@@ -168,13 +164,33 @@ export default function GroupDetailScreen() {
     });
   };
 
+  const handleNavigateToRanking = () => {
+    navigation.navigate('GroupRanking', {
+      groupId,
+      groupName: group?.name || groupName,
+      groupType: group?.groupType || 'running',
+    });
+  };
+
+  const handleCreateTraining = (type: string) => {
+    setShowTrainingModal(false);
+    const screenMap: Record<string, keyof RootStackParamList> = {
+      funcional: 'CreateFunctionalTraining',
+      caminhada_trail: 'CreateHike',
+      yoga: 'CreateYogaSession',
+      lutas: 'CreateFightTraining',
+    };
+    const screenName = screenMap[type] || 'CreateTraining';
+    navigation.navigate(screenName as any, { 
+      groupId, 
+      groupName: group?.name || groupName,
+      groupType: group?.groupType,
+    });
+  };
+
   const handleJoinTraining = async (trainingId: number, trainingType: string) => {
     try {
-      await apiRequest('groups.joinTraining', { 
-        trainingId, 
-        trainingType,
-        response: 'going' 
-      });
+      await api.joinGroupTraining(trainingId, trainingType, 'going');
       Alert.alert('Sucesso', 'Você confirmou presença no treino!');
       loadTrainings();
     } catch (error: any) {
@@ -198,7 +214,7 @@ export default function GroupDetailScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await apiRequest('groups.leave', { groupId });
+              await api.leaveGroup(groupId);
               navigation.goBack();
             } catch (error: any) {
               Alert.alert('Erro', error.message || 'Erro ao sair do grupo');
@@ -209,74 +225,47 @@ export default function GroupDetailScreen() {
     );
   };
 
-  const modalityInfo = MODALITY_ICONS[group?.type || 'outro'] || MODALITY_ICONS.outro;
+  const handleUpdateMemberRole = async (memberId: number, newRole: string) => {
+    try {
+      await api.updateGroupMember(groupId, memberId, { role: newRole });
+      Alert.alert('Sucesso', 'Papel atualizado com sucesso!');
+      loadMembers();
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Erro ao atualizar papel');
+    }
+  };
 
-  const tabs: { id: TabType; label: string; icon: string }[] = [
-    { id: 'feed', label: 'Feed', icon: 'newspaper-outline' },
-    { id: 'treinos', label: 'Treinos', icon: 'fitness-outline' },
-    { id: 'ranking', label: 'Ranking', icon: 'trophy-outline' },
-    { id: 'chat', label: 'Chat', icon: 'chatbubbles-outline' },
-  ];
-
-  // Quick Actions for Hub
-  const renderQuickActions = () => (
-    <View style={styles.quickActionsContainer}>
-      <TouchableOpacity 
-        style={styles.quickAction}
-        onPress={handleNavigateToMembers}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
-          <Ionicons name="people" size={22} color="#2196F3" />
-        </View>
-        <Text style={styles.quickActionLabel}>Membros</Text>
-        <Text style={styles.quickActionValue}>{group?.memberCount || 0}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.quickAction}
-        onPress={handleNavigateToRanking}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: '#FFF8E1' }]}>
-          <Ionicons name="trophy" size={22} color="#FFC107" />
-        </View>
-        <Text style={styles.quickActionLabel}>Ranking</Text>
-        <Text style={styles.quickActionValue}>Ver</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.quickAction}
-        onPress={handleNavigateToChat}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
-          <Ionicons name="chatbubbles" size={22} color="#4CAF50" />
-        </View>
-        <Text style={styles.quickActionLabel}>Chat</Text>
-        <Text style={styles.quickActionValue}>Abrir</Text>
-      </TouchableOpacity>
-
-      {canCreateTraining && (
-        <TouchableOpacity 
-          style={styles.quickAction}
-          onPress={() => setShowTrainingModal(true)}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#FFEBEE' }]}>
-            <Ionicons name="add-circle" size={22} color="#F44336" />
-          </View>
-          <Text style={styles.quickActionLabel}>Treino</Text>
-          <Text style={styles.quickActionValue}>Criar</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+  const handleRemoveMember = (memberId: number, memberName: string) => {
+    Alert.alert(
+      'Remover Membro',
+      `Tem certeza que deseja remover ${memberName} do grupo?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await api.removeGroupMember(groupId, memberId);
+              Alert.alert('Sucesso', 'Membro removido!');
+              loadMembers();
+            } catch (error: any) {
+              Alert.alert('Erro', error.message || 'Erro ao remover membro');
+            }
+          },
+        },
+      ]
+    );
+  };
 
   // Render Feed Tab
   const renderFeedTab = () => (
     <View style={styles.tabContent}>
       {posts.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="newspaper-outline" size={48} color="#ccc" />
+          <Ionicons name="newspaper-outline" size={48} color={COLORS.textSecondary} />
           <Text style={styles.emptyTitle}>Nenhum post ainda</Text>
-          <Text style={styles.emptyText}>Seja o primeiro a compartilhar algo!</Text>
+          <Text style={styles.emptySubtitle}>Seja o primeiro a compartilhar algo!</Text>
         </View>
       ) : (
         posts.map((post) => (
@@ -287,21 +276,23 @@ export default function GroupDetailScreen() {
                 style={styles.authorAvatar}
               />
               <View style={styles.authorInfo}>
-                <Text style={styles.authorName}>{post.author?.name}</Text>
-                <Text style={styles.postTime}>{post.timeAgo}</Text>
+                <Text style={styles.authorName}>{post.author?.name || 'Usuário'}</Text>
+                <Text style={styles.postTime}>
+                  {new Date(post.createdAt).toLocaleDateString('pt-BR')}
+                </Text>
               </View>
             </View>
-            <Text style={styles.postContent}>{post.content}</Text>
+            {post.content && <Text style={styles.postContent}>{post.content}</Text>}
             {post.imageUrl && (
               <Image source={{ uri: post.imageUrl }} style={styles.postImage} />
             )}
             <View style={styles.postActions}>
               <TouchableOpacity style={styles.postAction}>
-                <Ionicons name="heart-outline" size={20} color="#666" />
+                <Ionicons name="heart-outline" size={20} color={COLORS.textSecondary} />
                 <Text style={styles.postActionText}>{post.likesCount || 0}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.postAction}>
-                <Ionicons name="chatbubble-outline" size={20} color="#666" />
+                <Ionicons name="chatbubble-outline" size={20} color={COLORS.textSecondary} />
                 <Text style={styles.postActionText}>{post.commentsCount || 0}</Text>
               </TouchableOpacity>
             </View>
@@ -316,19 +307,19 @@ export default function GroupDetailScreen() {
     <View style={styles.tabContent}>
       {canCreateTraining && (
         <TouchableOpacity 
-          style={styles.createTrainingButton}
+          style={styles.createButton}
           onPress={() => setShowTrainingModal(true)}
         >
-          <Ionicons name="add-circle" size={24} color="#00C853" />
-          <Text style={styles.createTrainingText}>Criar Novo Treino</Text>
+          <Ionicons name="add-circle" size={22} color={COLORS.primary} />
+          <Text style={styles.createButtonText}>Criar Novo Treino</Text>
         </TouchableOpacity>
       )}
 
       {trainings.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="fitness-outline" size={48} color="#ccc" />
+          <Ionicons name="fitness-outline" size={48} color={COLORS.textSecondary} />
           <Text style={styles.emptyTitle}>Nenhum treino agendado</Text>
-          <Text style={styles.emptyText}>
+          <Text style={styles.emptySubtitle}>
             {canCreateTraining 
               ? 'Crie o primeiro treino do grupo!' 
               : 'Aguarde o admin criar um treino'}
@@ -336,14 +327,14 @@ export default function GroupDetailScreen() {
         </View>
       ) : (
         trainings.map((treino) => (
-          <View key={`${treino.type}-${treino.id}`} style={styles.treinoCard}>
-            <View style={styles.treinoHeader}>
-              <View style={[styles.treinoIcon, { backgroundColor: modalityInfo.color + '20' }]}>
-                <Ionicons name={modalityInfo.icon as any} size={24} color={modalityInfo.color} />
+          <View key={`${treino.trainingType}-${treino.id}`} style={styles.trainingCard}>
+            <View style={styles.trainingHeader}>
+              <View style={[styles.trainingIcon, { backgroundColor: `${typeConfig.color}20` }]}>
+                <Ionicons name={typeConfig.icon as any} size={24} color={typeConfig.color} />
               </View>
-              <View style={styles.treinoInfo}>
-                <Text style={styles.treinoTitle}>{treino.title}</Text>
-                <Text style={styles.treinoDate}>
+              <View style={styles.trainingInfo}>
+                <Text style={styles.trainingTitle}>{treino.title}</Text>
+                <Text style={styles.trainingDate}>
                   {new Date(treino.scheduledAt).toLocaleDateString('pt-BR', {
                     weekday: 'short',
                     day: '2-digit',
@@ -353,27 +344,20 @@ export default function GroupDetailScreen() {
                   })}
                 </Text>
               </View>
-              <View style={styles.treinoParticipants}>
-                <Ionicons name="people" size={16} color="#666" />
-                <Text style={styles.treinoParticipantsText}>
-                  {treino.goingCount || 0}
-                  {treino.maxParticipants ? `/${treino.maxParticipants}` : ''}
-                </Text>
-              </View>
             </View>
             
             {treino.meetingPoint && (
-              <View style={styles.treinoLocation}>
-                <Ionicons name="location-outline" size={16} color="#666" />
-                <Text style={styles.treinoLocationText}>{treino.meetingPoint}</Text>
+              <View style={styles.trainingLocation}>
+                <Ionicons name="location-outline" size={16} color={COLORS.textSecondary} />
+                <Text style={styles.trainingLocationText}>{treino.meetingPoint}</Text>
               </View>
             )}
 
             <TouchableOpacity 
-              style={styles.participarButton}
-              onPress={() => handleJoinTraining(treino.id, treino.type)}
+              style={styles.joinButton}
+              onPress={() => handleJoinTraining(treino.id, treino.trainingType)}
             >
-              <Text style={styles.participarButtonText}>Confirmar Presença</Text>
+              <Text style={styles.joinButtonText}>Confirmar Presença</Text>
             </TouchableOpacity>
           </View>
         ))
@@ -381,70 +365,83 @@ export default function GroupDetailScreen() {
     </View>
   );
 
-  // Render Ranking Tab (Preview)
-  const renderRankingTab = () => (
+  // Render Members Tab
+  const renderMembersTab = () => (
     <View style={styles.tabContent}>
-      <TouchableOpacity 
-        style={styles.rankingPreviewCard}
-        onPress={handleNavigateToRanking}
-      >
-        <View style={styles.rankingPreviewHeader}>
-          <Ionicons name="trophy" size={32} color="#FFD700" />
-          <Text style={styles.rankingPreviewTitle}>Ranking do Grupo</Text>
-        </View>
-        <Text style={styles.rankingPreviewText}>
-          Veja quem são os membros mais ativos e conquiste seu lugar no pódio!
-        </Text>
-        <View style={styles.rankingPreviewButton}>
-          <Text style={styles.rankingPreviewButtonText}>Ver Ranking Completo</Text>
-          <Ionicons name="chevron-forward" size={20} color="#00C853" />
-        </View>
-      </TouchableOpacity>
+      {canManage && (
+        <TouchableOpacity 
+          style={styles.createButton}
+          onPress={() => navigation.navigate('InviteMembers', { groupId, groupName: group?.name || groupName })}
+        >
+          <Ionicons name="person-add" size={22} color={COLORS.primary} />
+          <Text style={styles.createButtonText}>Convidar Membros</Text>
+        </TouchableOpacity>
+      )}
+
+      <Text style={styles.sectionTitle}>{members.length} membros</Text>
+
+      {members.map((member) => {
+        const roleConfig = ROLE_CONFIG[member.role] || ROLE_CONFIG.member;
+        const isCurrentUser = member.userId === user?.id;
+        const canEditMember = canManage && !isCurrentUser && member.role !== 'owner';
+
+        return (
+          <View key={member.id} style={styles.memberCard}>
+            <Image
+              source={{ uri: member.user?.photoUrl || 'https://via.placeholder.com/48' }}
+              style={styles.memberAvatar}
+            />
+            <View style={styles.memberInfo}>
+              <Text style={styles.memberName}>
+                {member.user?.name || 'Usuário'}
+                {isCurrentUser && ' (você)'}
+              </Text>
+              <View style={[styles.roleBadge, { backgroundColor: `${roleConfig.color}20` }]}>
+                <Text style={[styles.roleBadgeText, { color: roleConfig.color }]}>
+                  {roleConfig.label}
+                </Text>
+              </View>
+            </View>
+            
+            {canEditMember && (
+              <TouchableOpacity 
+                style={styles.memberAction}
+                onPress={() => {
+                  Alert.alert(
+                    'Gerenciar Membro',
+                    `O que deseja fazer com ${member.user?.name}?`,
+                    [
+                      { text: 'Cancelar', style: 'cancel' },
+                      { 
+                        text: member.role === 'admin' ? 'Remover Admin' : 'Tornar Admin',
+                        onPress: () => handleUpdateMemberRole(
+                          member.userId, 
+                          member.role === 'admin' ? 'member' : 'admin'
+                        )
+                      },
+                      { 
+                        text: 'Remover do Grupo',
+                        style: 'destructive',
+                        onPress: () => handleRemoveMember(member.userId, member.user?.name || 'Usuário')
+                      },
+                    ]
+                  );
+                }}
+              >
+                <Ionicons name="ellipsis-vertical" size={20} color={COLORS.textSecondary} />
+              </TouchableOpacity>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
-
-  // Render Chat Tab (Preview)
-  const renderChatTab = () => (
-    <View style={styles.tabContent}>
-      <TouchableOpacity 
-        style={styles.chatPreviewCard}
-        onPress={handleNavigateToChat}
-      >
-        <View style={styles.chatPreviewHeader}>
-          <Ionicons name="chatbubbles" size={32} color="#4CAF50" />
-          <Text style={styles.chatPreviewTitle}>Chat do Grupo</Text>
-        </View>
-        <Text style={styles.chatPreviewText}>
-          Converse com os membros do grupo em tempo real!
-        </Text>
-        <View style={styles.chatPreviewButton}>
-          <Text style={styles.chatPreviewButtonText}>Abrir Chat</Text>
-          <Ionicons name="chevron-forward" size={20} color="#00C853" />
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
-
-  const renderTabContent = () => {
-    switch (activeTab) {
-      case 'feed':
-        return renderFeedTab();
-      case 'treinos':
-        return renderTrainingsTab();
-      case 'ranking':
-        return renderRankingTab();
-      case 'chat':
-        return renderChatTab();
-      default:
-        return renderFeedTab();
-    }
-  };
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00C853" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeAreaView>
     );
@@ -455,156 +452,124 @@ export default function GroupDetailScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {group?.name || groupName}
-          </Text>
-          <View style={styles.headerMeta}>
-            <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
-            <Text style={styles.headerSubtitle}>
-              {group?.city} • {group?.memberCount} membros
-            </Text>
-          </View>
-        </View>
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#333" />
+        <Text style={styles.headerTitle} numberOfLines={1}>{group?.name || groupName}</Text>
+        <TouchableOpacity onPress={handleNavigateToChat} style={styles.chatButton}>
+          <Ionicons name="chatbubbles" size={22} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
 
       <ScrollView
-        style={styles.content}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#00C853']}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={COLORS.primary} />
         }
       >
-        {/* Cover Image */}
-        {group?.coverImageUrl && (
-          <Image
-            source={{ uri: group.coverImageUrl }}
-            style={styles.coverImage}
-          />
-        )}
+        {/* Group Info Card */}
+        <View style={styles.groupInfoCard}>
+          <View style={styles.groupHeader}>
+            {group?.logoUrl ? (
+              <Image source={{ uri: group.logoUrl }} style={styles.groupLogo} />
+            ) : (
+              <View style={[styles.groupLogoPlaceholder, { backgroundColor: `${typeConfig.color}20` }]}>
+                <Ionicons name={typeConfig.icon as any} size={32} color={typeConfig.color} />
+              </View>
+            )}
+            <View style={styles.groupDetails}>
+              <Text style={styles.groupName}>{group?.name}</Text>
+              <View style={styles.groupMeta}>
+                <Ionicons name="people" size={14} color={COLORS.textSecondary} />
+                <Text style={styles.groupMetaText}>{group?.memberCount || 0} membros</Text>
+              </View>
+              {group?.city && (
+                <View style={styles.groupMeta}>
+                  <Ionicons name="location" size={14} color={COLORS.textSecondary} />
+                  <Text style={styles.groupMetaText}>{group.city}{group.state ? `, ${group.state}` : ''}</Text>
+                </View>
+              )}
+            </View>
+          </View>
 
-        {/* Quick Actions Hub */}
-        {renderQuickActions()}
+          {group?.description && (
+            <Text style={styles.groupDescription}>{group.description}</Text>
+          )}
+
+          {/* Quick Actions */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity style={styles.quickAction} onPress={handleNavigateToRanking}>
+              <Ionicons name="trophy" size={20} color="#fbbf24" />
+              <Text style={styles.quickActionText}>Ranking</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.quickAction} onPress={handleNavigateToChat}>
+              <Ionicons name="chatbubbles" size={20} color="#22c55e" />
+              <Text style={styles.quickActionText}>Chat</Text>
+            </TouchableOpacity>
+            {membership && membership.role !== 'owner' && (
+              <TouchableOpacity style={styles.quickAction} onPress={handleLeaveGroup}>
+                <Ionicons name="exit" size={20} color="#ef4444" />
+                <Text style={styles.quickActionText}>Sair</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        </View>
 
         {/* Tabs */}
         <View style={styles.tabsContainer}>
-          {tabs.map((tab) => (
+          {(['feed', 'treinos', 'membros'] as TabType[]).map((tab) => (
             <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
+              key={tab}
+              style={[styles.tab, activeTab === tab && styles.tabActive]}
+              onPress={() => setActiveTab(tab)}
             >
-              <Ionicons
-                name={tab.icon as any}
-                size={20}
-                color={activeTab === tab.id ? '#00C853' : '#666'}
-              />
-              <Text style={[
-                styles.tabLabel,
-                activeTab === tab.id && styles.tabLabelActive
-              ]}>
-                {tab.label}
+              <Text style={[styles.tabText, activeTab === tab && styles.tabTextActive]}>
+                {tab === 'feed' ? 'Feed' : tab === 'treinos' ? 'Treinos' : 'Membros'}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
 
         {/* Tab Content */}
-        {renderTabContent()}
-
-        {/* Leave Group Button */}
-        {membership && membership.role !== 'owner' && (
-          <TouchableOpacity 
-            style={styles.leaveButton}
-            onPress={handleLeaveGroup}
-          >
-            <Ionicons name="exit-outline" size={20} color="#FF5252" />
-            <Text style={styles.leaveButtonText}>Sair do Grupo</Text>
-          </TouchableOpacity>
-        )}
-
-        <View style={{ height: 40 }} />
+        {activeTab === 'feed' && renderFeedTab()}
+        {activeTab === 'treinos' && renderTrainingsTab()}
+        {activeTab === 'membros' && renderMembersTab()}
       </ScrollView>
 
-      {/* Create Training Modal */}
+      {/* Training Type Modal */}
       <Modal
         visible={showTrainingModal}
-        animationType="slide"
         transparent
+        animationType="slide"
         onRequestClose={() => setShowTrainingModal(false)}
       >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowTrainingModal(false)}
-        >
-          <View style={styles.trainingModalContent}>
-            <View style={styles.modalHandle} />
-            <Text style={styles.modalTitle}>Criar Treino</Text>
-            <Text style={styles.modalSubtitle}>Escolha o tipo de treino</Text>
-
-            <View style={styles.trainingOptions}>
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('funcional')}
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Tipo de Treino</Text>
+            
+            {[
+              { id: 'funcional', label: 'Funcional', icon: 'barbell' },
+              { id: 'caminhada_trail', label: 'Caminhada/Trail', icon: 'leaf' },
+              { id: 'yoga', label: 'Yoga', icon: 'body' },
+              { id: 'lutas', label: 'Lutas', icon: 'hand-left' },
+            ].map((type) => (
+              <TouchableOpacity
+                key={type.id}
+                style={styles.modalOption}
+                onPress={() => handleCreateTraining(type.id)}
               >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#FFEBEE' }]}>
-                  <Ionicons name="barbell-outline" size={28} color="#FF5722" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Funcional</Text>
-                <Text style={styles.trainingOptionDesc}>Circuitos, HIIT, força</Text>
+                <Ionicons name={type.icon as any} size={24} color={COLORS.primary} />
+                <Text style={styles.modalOptionText}>{type.label}</Text>
+                <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
               </TouchableOpacity>
+            ))}
 
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('caminhada_trail')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#E8F5E9' }]}>
-                  <Ionicons name="trail-sign-outline" size={28} color="#4CAF50" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Caminhada/Trail</Text>
-                <Text style={styles.trainingOptionDesc}>Trilhas e caminhadas</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('yoga')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#F3E5F5' }]}>
-                  <Ionicons name="body-outline" size={28} color="#9C27B0" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Yoga</Text>
-                <Text style={styles.trainingOptionDesc}>Sessões de yoga</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('lutas')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#FFEBEE' }]}>
-                  <Ionicons name="hand-left-outline" size={28} color="#F44336" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Lutas</Text>
-                <Text style={styles.trainingOptionDesc}>Artes marciais, sparring</Text>
-              </TouchableOpacity>
-            </View>
-
-            <TouchableOpacity 
-              style={styles.cancelModalButton}
+            <TouchableOpacity
+              style={styles.modalCancel}
               onPress={() => setShowTrainingModal(false)}
             >
-              <Text style={styles.cancelModalButtonText}>Cancelar</Text>
+              <Text style={styles.modalCancelText}>Cancelar</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
+        </View>
       </Modal>
     </SafeAreaView>
   );
@@ -613,7 +578,7 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
@@ -623,419 +588,348 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#fff',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.md,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
   backButton: {
-    padding: 4,
-  },
-  headerTitleContainer: {
-    flex: 1,
-    marginLeft: 12,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   headerTitle: {
+    flex: 1,
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#fff',
+    textAlign: 'center',
+    marginHorizontal: SPACING.sm,
   },
-  headerMeta: {
+  chatButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(163, 230, 53, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupInfoCard: {
+    backgroundColor: COLORS.surface,
+    margin: SPACING.md,
+    borderRadius: RADIUS.lg,
+    padding: SPACING.md,
+  },
+  groupHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  groupLogo: {
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.md,
+  },
+  groupLogoPlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  groupDetails: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  groupName: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  groupMeta: {
     flexDirection: 'row',
     alignItems: 'center',
     marginTop: 2,
-    gap: 4,
   },
-  headerSubtitle: {
+  groupMetaText: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
+    marginLeft: 4,
   },
-  menuButton: {
-    padding: 4,
+  groupDescription: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.md,
+    lineHeight: 20,
   },
-  content: {
-    flex: 1,
-  },
-  coverImage: {
-    width: '100%',
-    height: 150,
-    backgroundColor: '#e0e0e0',
-  },
-  quickActionsContainer: {
+  quickActions: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.md,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
   },
   quickAction: {
     flex: 1,
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingVertical: SPACING.sm,
   },
-  quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  quickActionLabel: {
+  quickActionText: {
     fontSize: 12,
-    fontWeight: '600',
-    color: '#333',
-  },
-  quickActionValue: {
-    fontSize: 11,
-    color: '#666',
-    marginTop: 2,
+    color: COLORS.textSecondary,
+    marginTop: 4,
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    marginHorizontal: SPACING.md,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: 4,
   },
   tab: {
     flex: 1,
-    flexDirection: 'row',
+    paddingVertical: SPACING.sm,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 14,
-    gap: 6,
+    borderRadius: RADIUS.sm,
   },
   tabActive: {
-    borderBottomWidth: 2,
-    borderBottomColor: '#00C853',
+    backgroundColor: COLORS.primary,
   },
-  tabLabel: {
-    fontSize: 13,
+  tabText: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textSecondary,
   },
-  tabLabelActive: {
-    color: '#00C853',
+  tabTextActive: {
+    color: '#0a1628',
   },
   tabContent: {
-    padding: 16,
+    padding: SPACING.md,
   },
   emptyState: {
     alignItems: 'center',
-    paddingVertical: 40,
+    paddingVertical: SPACING.xl,
   },
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
-    marginTop: 12,
+    color: '#fff',
+    marginTop: SPACING.md,
   },
-  emptyText: {
+  emptySubtitle: {
     fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.xs,
     textAlign: 'center',
   },
+  createButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.md,
+  },
+  createButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+    marginLeft: SPACING.sm,
+  },
   postCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
   },
   postHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: SPACING.sm,
   },
   authorAvatar: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#e0e0e0',
   },
   authorInfo: {
-    flex: 1,
-    marginLeft: 12,
+    marginLeft: SPACING.sm,
   },
   authorName: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#333',
-  },
-  postTime: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 2,
-  },
-  postContent: {
-    fontSize: 15,
-    color: '#333',
-    lineHeight: 22,
-  },
-  postImage: {
-    width: '100%',
-    height: 200,
-    borderRadius: 8,
-    marginTop: 12,
-    backgroundColor: '#e0e0e0',
-  },
-  postActions: {
-    flexDirection: 'row',
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#eee',
-    gap: 20,
-  },
-  postAction: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  postActionText: {
-    fontSize: 14,
-    color: '#666',
-  },
-  createTrainingButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#f0fff4',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 2,
-    borderColor: '#00C853',
-    borderStyle: 'dashed',
-    gap: 8,
-  },
-  createTrainingText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#00C853',
-  },
-  treinoCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-  },
-  treinoHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  treinoIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  treinoInfo: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  treinoTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#333',
-  },
-  treinoDate: {
-    fontSize: 13,
-    color: '#666',
-    marginTop: 2,
-  },
-  treinoParticipants: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  treinoParticipantsText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  treinoLocation: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 12,
-    gap: 6,
-  },
-  treinoLocationText: {
-    fontSize: 13,
-    color: '#666',
-  },
-  participarButton: {
-    backgroundColor: '#00C853',
-    borderRadius: 8,
-    paddingVertical: 12,
-    alignItems: 'center',
-    marginTop: 16,
-  },
-  participarButtonText: {
     fontSize: 14,
     fontWeight: '600',
     color: '#fff',
   },
-  rankingPreviewCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
+  postTime: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
   },
-  rankingPreviewHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  rankingPreviewTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  rankingPreviewText: {
+  postContent: {
     fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 16,
+    color: '#fff',
+    lineHeight: 20,
   },
-  rankingPreviewButton: {
+  postImage: {
+    width: '100%',
+    height: 200,
+    borderRadius: RADIUS.sm,
+    marginTop: SPACING.sm,
+  },
+  postActions: {
+    flexDirection: 'row',
+    marginTop: SPACING.md,
+    paddingTop: SPACING.sm,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(255,255,255,0.1)',
+  },
+  postAction: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    marginRight: SPACING.lg,
   },
-  rankingPreviewButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#00C853',
+  postActionText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
   },
-  chatPreviewCard: {
-    backgroundColor: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
+  trainingCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.md,
+    padding: SPACING.md,
+    marginBottom: SPACING.md,
   },
-  chatPreviewHeader: {
+  trainingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
   },
-  chatPreviewTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#333',
-  },
-  chatPreviewText: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginBottom: 16,
-  },
-  chatPreviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  chatPreviewButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#00C853',
-  },
-  leaveButton: {
-    flexDirection: 'row',
+  trainingIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    marginHorizontal: 16,
-    marginTop: 20,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#FF5252',
-    gap: 8,
   },
-  leaveButtonText: {
+  trainingInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  trainingTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  trainingDate: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+  },
+  trainingLocation: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: SPACING.sm,
+  },
+  trainingLocationText: {
+    fontSize: 13,
+    color: COLORS.textSecondary,
+    marginLeft: 4,
+  },
+  joinButton: {
+    backgroundColor: COLORS.primary,
+    paddingVertical: SPACING.sm,
+    borderRadius: RADIUS.md,
+    alignItems: 'center',
+    marginTop: SPACING.md,
+  },
+  joinButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#0a1628',
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.md,
+    textTransform: 'uppercase',
+  },
+  memberCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.surface,
+    padding: SPACING.md,
+    borderRadius: RADIUS.md,
+    marginBottom: SPACING.sm,
+  },
+  memberAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+  },
+  memberInfo: {
+    flex: 1,
+    marginLeft: SPACING.md,
+  },
+  memberName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FF5252',
+    color: '#fff',
+    marginBottom: 4,
+  },
+  roleBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+  },
+  roleBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  memberAction: {
+    padding: SPACING.sm,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
-  trainingModalContent: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 20,
-    paddingBottom: 40,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    backgroundColor: '#e0e0e0',
-    borderRadius: 2,
-    alignSelf: 'center',
-    marginBottom: 16,
+  modalContent: {
+    backgroundColor: COLORS.surface,
+    borderTopLeftRadius: RADIUS.xl,
+    borderTopRightRadius: RADIUS.xl,
+    padding: SPACING.lg,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#fff',
     textAlign: 'center',
+    marginBottom: SPACING.lg,
   },
-  modalSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    textAlign: 'center',
-    marginTop: 4,
-    marginBottom: 20,
-  },
-  trainingOptions: {
+  modalOption: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -6,
-  },
-  trainingOption: {
-    width: '48%',
-    backgroundColor: '#f5f5f5',
-    borderRadius: 12,
-    padding: 16,
-    marginHorizontal: '1%',
-    marginBottom: 12,
     alignItems: 'center',
+    paddingVertical: SPACING.md,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
   },
-  trainingOptionIcon: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+  modalOptionText: {
+    flex: 1,
+    fontSize: 16,
+    color: '#fff',
+    marginLeft: SPACING.md,
+  },
+  modalCancel: {
+    paddingVertical: SPACING.md,
     alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
+    marginTop: SPACING.md,
   },
-  trainingOptionLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
-  },
-  trainingOptionDesc: {
-    fontSize: 12,
-    color: '#666',
-    marginTop: 4,
-    textAlign: 'center',
-  },
-  cancelModalButton: {
-    alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 8,
-  },
-  cancelModalButtonText: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#666',
+  modalCancelText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
   },
 });

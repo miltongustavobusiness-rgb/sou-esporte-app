@@ -1682,6 +1682,87 @@ ApiService.prototype.leaveGroup = async function(groupId: number): Promise<{ suc
   }
 };
 
+ApiService.prototype.getGroupMembership = async function(groupId: number, userId: number): Promise<any> {
+  try {
+    return await this.trpcQuery<any>('mobile.groups.getMembership', { groupId, userId });
+  } catch (error) {
+    console.error('Get group membership error:', error);
+    return null;
+  }
+};
+
+ApiService.prototype.getGroupMembers = async function(groupId: number): Promise<any[]> {
+  try {
+    return await this.trpcQuery<any[]>('mobile.groups.getMembers', { groupId });
+  } catch (error) {
+    console.error('Get group members error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.getGroupTrainings = async function(groupId: number): Promise<any[]> {
+  try {
+    return await this.trpcQuery<any[]>('mobile.groups.getTrainings', { groupId });
+  } catch (error) {
+    console.error('Get group trainings error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.getGroupPosts = async function(groupId: number): Promise<any[]> {
+  try {
+    return await this.trpcQuery<any[]>('mobile.groups.getPosts', { groupId });
+  } catch (error) {
+    console.error('Get group posts error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.joinGroupTraining = async function(trainingId: number, trainingType: string, response: string): Promise<{ success: boolean }> {
+  try {
+    return await this.trpcMutation<{ success: boolean }>('mobile.groups.joinTraining', { trainingId, trainingType, response });
+  } catch (error) {
+    console.error('Join group training error:', error);
+    return { success: false };
+  }
+};
+
+ApiService.prototype.updateGroupMember = async function(groupId: number, userId: number, data: { role?: string; canCreateTraining?: boolean }): Promise<{ success: boolean }> {
+  try {
+    return await this.trpcMutation<{ success: boolean }>('mobile.groups.updateMember', { groupId, userId, ...data });
+  } catch (error) {
+    console.error('Update group member error:', error);
+    return { success: false };
+  }
+};
+
+ApiService.prototype.removeGroupMember = async function(groupId: number, userId: number): Promise<{ success: boolean }> {
+  try {
+    return await this.trpcMutation<{ success: boolean }>('mobile.groups.removeMember', { groupId, userId });
+  } catch (error) {
+    console.error('Remove group member error:', error);
+    return { success: false };
+  }
+};
+
+ApiService.prototype.getGroupMessages = async function(groupId: number, limit?: number): Promise<any[]> {
+  try {
+    return await this.trpcQuery<any[]>('mobile.groups.getMessages', { groupId, limit: limit || 50 });
+  } catch (error) {
+    console.error('Get group messages error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.sendGroupMessage = async function(groupId: number, content: string, userId: number, replyToId?: number): Promise<{ success: boolean }> {
+  try {
+    return await this.trpcMutation<{ success: boolean }>('mobile.groups.sendMessage', { groupId, content, userId, replyToId });
+  } catch (error) {
+    console.error('Send group message error:', error);
+    return { success: false };
+  }
+};
+
 // Type declarations for the extended methods
 declare module './api' {
   interface ApiService {
@@ -1701,6 +1782,15 @@ declare module './api' {
     createGroup(data: any): Promise<{ success: boolean; groupId?: number }>;
     joinGroup(groupId: number): Promise<{ success: boolean }>;
     leaveGroup(groupId: number): Promise<{ success: boolean }>;
+    getGroupMembership(groupId: number, userId: number): Promise<any>;
+    getGroupMembers(groupId: number): Promise<any[]>;
+    getGroupTrainings(groupId: number): Promise<any[]>;
+    getGroupPosts(groupId: number): Promise<any[]>;
+    joinGroupTraining(trainingId: number, trainingType: string, response: string): Promise<{ success: boolean }>;
+    updateGroupMember(groupId: number, userId: number, data: { role?: string; canCreateTraining?: boolean }): Promise<{ success: boolean }>;
+    removeGroupMember(groupId: number, userId: number): Promise<{ success: boolean }>;
+    getGroupMessages(groupId: number, limit?: number): Promise<any[]>;
+    sendGroupMessage(groupId: number, content: string, userId: number, replyToId?: number): Promise<{ success: boolean }>;
   }
 }
 

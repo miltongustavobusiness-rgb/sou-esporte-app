@@ -18,6 +18,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../types';
+import { COLORS, SPACING, RADIUS } from '../constants/theme';
+import { useApp } from '../contexts/AppContext';
+import { api } from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -224,42 +227,40 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
-      // Simular criação do grupo (integrar com API depois)
-      const novoGrupo = {
-        id: Date.now().toString(),
-        nome,
-        modalidade,
-        distancias: distanciasSelecionadas,
-        cidade,
-        bairro,
-        visibilidade,
-        fotoCapa,
-        regras,
-        permitirTreinosPublicos,
-        aprovarMembrosManualmente,
-        membros: 1,
-        isAdmin: true,
-        // Novos campos
-        tipoGrupo,
-        valorMensalidade: tipoGrupo === 'pago' ? parseInt(valorMensalidade) / 100 : 0,
-        periodoCobranca: tipoGrupo === 'pago' ? periodoCobranca : null,
-        instrutor: tipoGrupo === 'pago' ? {
-          nome: nomeInstrutor,
-          especialidade: especialidadeInstrutor,
-          descricao: descricaoInstrutor,
-          foto: fotoInstrutor,
-        } : null,
-        beneficiosComunidade: tipoGrupo === 'pago' ? beneficiosComunidade : null,
-      };
-
-      console.log('Novo grupo criado:', novoGrupo);
-
-      // Navegar para o detalhe do grupo como admin
-      navigation.navigate('GroupDetail', { 
-        groupId: novoGrupo.id,
-        groupName: novoGrupo.nome,
-        isAdmin: true,
+      // Criar grupo via API
+      const result = await api.createGroup({
+        name: nome,
+        description: regras || undefined,
+        privacy: visibilidade === 'publico' ? 'public' : 'private',
+        groupType: modalidade as any,
+        city: cidade,
+        state: bairro || undefined,
+        requiresApproval: aprovarMembrosManualmente,
       });
+
+      if (!result.success || !result.groupId) {
+        throw new Error('Falha ao criar grupo');
+      }
+
+      console.log('Grupo criado com sucesso! ID:', result.groupId);
+      
+      Alert.alert(
+        'Sucesso!', 
+        'Grupo criado com sucesso!',
+        [
+          {
+            text: 'Ver Grupo',
+            onPress: () => {
+              // Navegar para o detalhe do grupo como admin
+              navigation.navigate('GroupDetail', { 
+                groupId: result.groupId!,
+                groupName: nome,
+                isAdmin: true,
+              });
+            }
+          }
+        ]
+      );
       
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível criar o grupo. Tente novamente.');
