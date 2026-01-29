@@ -20,12 +20,12 @@ FROM users;
 -- =====================================================
 SELECT '=== USER FOLLOWS TABLE ===' as section;
 
-SELECT COUNT(*) as total_follows FROM userFollows;
+SELECT COUNT(*) as total_follows FROM user_follows;
 
 -- Users with most followers
 SELECT u.id, u.name, COUNT(uf.followerId) as actual_followers, u.followersCount as stored_count
 FROM users u
-LEFT JOIN userFollows uf ON uf.followingId = u.id
+LEFT JOIN user_follows uf ON uf.followingId = u.id
 GROUP BY u.id
 HAVING actual_followers > 0 OR stored_count > 0
 ORDER BY actual_followers DESC
@@ -51,13 +51,13 @@ WHERE status = 'active';
 -- =====================================================
 SELECT '=== POST REACTIONS TABLE ===' as section;
 
-SELECT COUNT(*) as total_reactions FROM postReactions;
+SELECT COUNT(*) as total_reactions FROM post_likes;
 
 -- Posts with most likes
 SELECT p.id, SUBSTRING(p.content, 1, 50) as content_preview, 
-       COUNT(pr.id) as actual_likes, p.likesCount as stored_count
+       COUNT(pl.id) as actual_likes, p.likesCount as stored_count
 FROM posts p
-LEFT JOIN postReactions pr ON pr.postId = p.id
+LEFT JOIN post_likes pl ON pl.postId = p.id
 GROUP BY p.id
 HAVING actual_likes > 0 OR stored_count > 0
 ORDER BY actual_likes DESC
@@ -68,11 +68,11 @@ LIMIT 10;
 -- =====================================================
 SELECT '=== CHAT THREADS TABLE ===' as section;
 
-SELECT COUNT(*) as total_threads FROM chatThreads;
+SELECT COUNT(*) as total_threads FROM chat_threads;
 
 -- Active chat threads
 SELECT ct.id, u1.name as user1, u2.name as user2, ct.lastMessageAt
-FROM chatThreads ct
+FROM chat_threads ct
 JOIN users u1 ON ct.user1Id = u1.id
 JOIN users u2 ON ct.user2Id = u2.id
 ORDER BY ct.lastMessageAt DESC
@@ -83,7 +83,7 @@ LIMIT 10;
 -- =====================================================
 SELECT '=== CHAT MESSAGES TABLE ===' as section;
 
-SELECT COUNT(*) as total_messages FROM chatMessages;
+SELECT COUNT(*) as total_messages FROM chat_messages;
 
 -- =====================================================
 -- 7. INTEGRITY CHECKS
@@ -92,13 +92,13 @@ SELECT '=== INTEGRITY CHECKS ===' as section;
 
 -- Orphaned follows (followerId doesn't exist)
 SELECT COUNT(*) as orphaned_follower_ids
-FROM userFollows uf
+FROM user_follows uf
 LEFT JOIN users u ON uf.followerId = u.id
 WHERE u.id IS NULL;
 
 -- Orphaned follows (followingId doesn't exist)
 SELECT COUNT(*) as orphaned_following_ids
-FROM userFollows uf
+FROM user_follows uf
 LEFT JOIN users u ON uf.followingId = u.id
 WHERE u.id IS NULL;
 
@@ -110,6 +110,6 @@ WHERE u.id IS NULL;
 
 -- Orphaned reactions (postId doesn't exist)
 SELECT COUNT(*) as orphaned_reactions
-FROM postReactions pr
-LEFT JOIN posts p ON pr.postId = p.id
+FROM post_likes pl
+LEFT JOIN posts p ON pl.postId = p.id
 WHERE p.id IS NULL;
