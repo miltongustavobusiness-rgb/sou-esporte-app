@@ -24,16 +24,16 @@ import { api } from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
+// IDs devem corresponder aos valores aceitos pelo backend:
+// 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other'
 const MODALIDADES = [
-  { id: 'corrida', label: 'Corrida', icon: 'walk-outline' },
+  { id: 'running', label: 'Corrida', icon: 'walk-outline' },
   { id: 'triathlon', label: 'Triathlon', icon: 'bicycle-outline' },
-  { id: 'bike', label: 'Bike', icon: 'bicycle-outline' },
-  { id: 'natacao', label: 'Natação', icon: 'water-outline' },
-  { id: 'funcional', label: 'Funcional Avançado', icon: 'barbell-outline' },
-  { id: 'caminhada_trail', label: 'Caminhada/Trail', icon: 'trail-sign-outline' },
-  { id: 'yoga', label: 'Yoga', icon: 'body-outline' },
-  { id: 'lutas', label: 'Lutas/Artes Marciais', icon: 'hand-left-outline' },
-  { id: 'outro', label: 'Outro', icon: 'fitness-outline' },
+  { id: 'cycling', label: 'Bike/Ciclismo', icon: 'bicycle-outline' },
+  { id: 'swimming', label: 'Natação', icon: 'water-outline' },
+  { id: 'fitness', label: 'Funcional/Academia', icon: 'barbell-outline' },
+  { id: 'trail', label: 'Caminhada/Trail', icon: 'trail-sign-outline' },
+  { id: 'other', label: 'Outro', icon: 'fitness-outline' },
 ];
 
 const DISTANCIAS_CORRIDA = ['5k', '10k', '15k', '21k', '42k'];
@@ -137,11 +137,11 @@ export default function CreateGroupScreen() {
 
   const getDistanciasParaModalidade = () => {
     switch (modalidade) {
-      case 'corrida':
+      case 'running':
         return DISTANCIAS_CORRIDA;
-      case 'bike':
+      case 'cycling':
         return DISTANCIAS_BIKE;
-      case 'natacao':
+      case 'swimming':
         return DISTANCIAS_NATACAO;
       default:
         return [];
