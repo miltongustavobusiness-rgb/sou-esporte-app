@@ -142,7 +142,35 @@ export async function getUserById(id: number) {
   if (!db) return undefined;
   
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  if (result.length === 0) return undefined;
+  
+  const user = result[0];
+  
+  // Get posts count (only active posts)
+  const postsCountResult = await db.select({ count: sql<number>`count(*)` })
+    .from(posts)
+    .where(and(eq(posts.authorId, id), eq(posts.status, 'active')));
+  
+  const postsCount = Number(postsCountResult[0]?.count || 0);
+  
+  // Recalculate followers/following counts from actual data (more accurate than cached values)
+  const followersCountResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${userFollows.followerId})` })
+    .from(userFollows)
+    .where(eq(userFollows.followingId, id));
+  
+  const followingCountResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${userFollows.followingId})` })
+    .from(userFollows)
+    .where(eq(userFollows.followerId, id));
+  
+  const actualFollowersCount = Number(followersCountResult[0]?.count || 0);
+  const actualFollowingCount = Number(followingCountResult[0]?.count || 0);
+  
+  return {
+    ...user,
+    postsCount,
+    followersCount: actualFollowersCount,
+    followingCount: actualFollowingCount,
+  };
 }
 
 export async function getUserByEmail(email: string) {
@@ -3286,12 +3314,13 @@ export async function getFollowers(
   if (!db) return { users: [], total: 0 };
   
   try {
-    // Get followers
-    const followers = await db.select({
+    // Get followers with DISTINCT to avoid duplicates
+    const followers = await db.selectDistinct({
       id: users.id,
       name: users.name,
       photoUrl: users.photoUrl,
       bio: users.bio,
+      sports: users.sports,
     })
     .from(userFollows)
     .innerJoin(users, eq(userFollows.followerId, users.id))
@@ -3300,8 +3329,8 @@ export async function getFollowers(
     .limit(limit)
     .offset(offset);
     
-    // Get total count
-    const countResult = await db.select({ count: sql<number>`count(*)` })
+    // Get total count - use COUNT DISTINCT to avoid counting duplicates
+    const countResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${userFollows.followerId})` })
       .from(userFollows)
       .where(eq(userFollows.followingId, userId));
     
@@ -3340,12 +3369,14 @@ export async function getFollowing(
   if (!db) return { users: [], total: 0 };
   
   try {
-    // Get following
-    const following = await db.select({
+    // Get following with DISTINCT to avoid duplicates
+    // Using a subquery to get unique followingIds first
+    const following = await db.selectDistinct({
       id: users.id,
       name: users.name,
       photoUrl: users.photoUrl,
       bio: users.bio,
+      sports: users.sports,
     })
     .from(userFollows)
     .innerJoin(users, eq(userFollows.followingId, users.id))
@@ -3354,8 +3385,8 @@ export async function getFollowing(
     .limit(limit)
     .offset(offset);
     
-    // Get total count
-    const countResult = await db.select({ count: sql<number>`count(*)` })
+    // Get total count - use COUNT DISTINCT to avoid counting duplicates
+    const countResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${userFollows.followingId})` })
       .from(userFollows)
       .where(eq(userFollows.followerId, userId));
     
@@ -3749,12 +3780,24 @@ export async function getAthleteProfile(
     
     const user = userResult[0];
     
-    // Get posts count
+    // Get posts count (only active posts)
     const postsCountResult = await db.select({ count: sql<number>`count(*)` })
       .from(posts)
-      .where(eq(posts.authorId, userId));
+      .where(and(eq(posts.authorId, userId), eq(posts.status, 'active')));
     
     const postsCount = postsCountResult[0]?.count || 0;
+    
+    // Recalculate followers/following counts from actual data (more accurate)
+    const followersCountResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${userFollows.followerId})` })
+      .from(userFollows)
+      .where(eq(userFollows.followingId, userId));
+    
+    const followingCountResult = await db.select({ count: sql<number>`COUNT(DISTINCT ${userFollows.followingId})` })
+      .from(userFollows)
+      .where(eq(userFollows.followerId, userId));
+    
+    const actualFollowersCount = Number(followersCountResult[0]?.count || 0);
+    const actualFollowingCount = Number(followingCountResult[0]?.count || 0);
     
     // Get user's posts with images/videos for grid
     const userPosts = await db.select({
@@ -3808,8 +3851,8 @@ export async function getAthleteProfile(
         athleteCategory: (user as any).athleteCategory || null,
         sports: (user as any).sports || null,
         postsCount: Number(postsCount),
-        followersCount: user.followersCount || 0,
-        followingCount: user.followingCount || 0,
+        followersCount: actualFollowersCount,
+        followingCount: actualFollowingCount,
         isFollowing,
       },
       posts: userPosts.map(post => ({

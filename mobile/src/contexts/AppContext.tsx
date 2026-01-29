@@ -30,6 +30,9 @@ interface User {
   gridBio?: string | null;
   athleteCategory?: 'PRO' | 'AMATEUR' | 'COACH' | null;
   sports?: string[] | string | null;
+  followersCount?: number;
+  followingCount?: number;
+  postsCount?: number;
 }
 
 interface Team {
@@ -297,6 +300,9 @@ export function AppProvider({ children }: AppProviderProps) {
           gridBio: profile.gridBio || null,
           athleteCategory: profile.athleteCategory || null,
           sports: profile.sports || null,
+          followersCount: profile.followersCount || 0,
+          followingCount: profile.followingCount || 0,
+          postsCount: profile.postsCount || 0,
         };
         setUser(userData);
         await AsyncStorage.setItem('@souesporte_user', JSON.stringify(userData));

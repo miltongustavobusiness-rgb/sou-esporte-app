@@ -1,0 +1,35 @@
+ANÁLISE DO PROBLEMA DE VÍDEO:
+
+1. O erro mostra: [InlineVideoPlayer] ❌ VIDEO ERROR: {"url":"file:/...
+   - A URL começa com "file:/" que é um protocolo local
+   - Isso indica que as URLs de vídeo no banco de dados estão incorretas
+   - Deveriam ser URLs HTTP/HTTPS para o servidor de mídia
+
+2. Os thumbnails não aparecem porque:
+   - Se a URL do vídeo está incorreta, a thumbnail também pode estar
+   - O campo videoThumbnailUrl pode estar null ou com URL inválida
+
+3. Problema identificado:
+   - As URLs de vídeo foram salvas com protocolo "file://" em vez de "https://"
+   - Isso acontece quando o vídeo é selecionado do dispositivo mas não é feito upload
+
+SOLUÇÃO:
+1. Verificar no banco de dados as URLs de vídeo
+2. As URLs devem começar com https:// apontando para o servidor de mídia (S3, etc)
+3. Se os vídeos não foram uploaded, precisam ser re-uploaded
+
+CONTADORES:
+- Bio mostra: 11 Posts, 0 Seguidores, 2 Seguindo
+- Grid mostra: 8 Posts, 0 Seguidores, 0 Seguindo
+- Os valores são diferentes porque:
+  - Bio usa dados do backend (getAthleteProfile)
+  - Grid usava valores hardcoded (0)
+  - Agora corrigido para usar user?.followersCount e user?.followingCount
+
+DUPLICAÇÃO DE FOLLOWS:
+- Gladston aparece 2 vezes na lista de "Seguindo"
+- Causa: registros duplicados na tabela user_follows
+- Solução: 
+  1. Script SQL para remover duplicatas
+  2. Adicionar constraint UNIQUE (followerId, followingId)
+  3. Usar SELECT DISTINCT nas queries

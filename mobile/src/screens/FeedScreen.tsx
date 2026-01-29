@@ -382,7 +382,7 @@ const InlineVideoPlayer = ({
 
 export default function FeedScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, activeTraining, updateUser } = useApp();
+  const { user, activeTraining, updateUser, refreshUser } = useApp();
   const { showToast } = useToast();
   
   // State for modals
@@ -1087,7 +1087,10 @@ export default function FeedScreen() {
             </TouchableOpacity>
             <TouchableOpacity 
               style={[styles.viewToggleBtn, viewMode === 'grid' && styles.viewToggleBtnActive]}
-              onPress={() => setViewMode('grid')}
+              onPress={() => {
+                setViewMode('grid');
+                refreshUser(); // Atualizar contadores ao entrar no grid
+              }}
             >
               <Text style={[styles.viewToggleText, viewMode === 'grid' && styles.viewToggleTextActive]}>Grid</Text>
             </TouchableOpacity>
@@ -1141,17 +1144,23 @@ export default function FeedScreen() {
                 </View>
                 <View style={styles.gridProfileStats}>
                   <View style={styles.gridStatItem}>
-                    <Text style={styles.gridStatNumber}>{feedPosts.filter((p: any) => p.authorId === user?.id).length}</Text>
+                    <Text style={styles.gridStatNumber}>{user?.postsCount ?? feedPosts.filter((p: any) => p.authorId === user?.id).length}</Text>
                     <Text style={styles.gridStatLabel}>Posts</Text>
                   </View>
-                  <View style={styles.gridStatItem}>
-                    <Text style={styles.gridStatNumber}>0</Text>
+                  <TouchableOpacity 
+                    style={styles.gridStatItem}
+                    onPress={() => navigation.navigate('FollowersList' as any, { userId: user?.id, type: 'followers' })}
+                  >
+                    <Text style={styles.gridStatNumber}>{user?.followersCount ?? 0}</Text>
                     <Text style={styles.gridStatLabel}>Seguidores</Text>
-                  </View>
-                  <View style={styles.gridStatItem}>
-                    <Text style={styles.gridStatNumber}>0</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={styles.gridStatItem}
+                    onPress={() => navigation.navigate('FollowersList' as any, { userId: user?.id, type: 'following' })}
+                  >
+                    <Text style={styles.gridStatNumber}>{user?.followingCount ?? 0}</Text>
                     <Text style={styles.gridStatLabel}>Seguindo</Text>
-                  </View>
+                  </TouchableOpacity>
                 </View>
               </TouchableOpacity>
               
