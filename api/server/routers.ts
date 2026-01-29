@@ -1661,6 +1661,7 @@ export const appRouter = router({
           allowJoinRequests: z.union([z.boolean(), z.string()]).optional(), // Accept boolean or string
           requiresApproval: z.union([z.boolean(), z.string()]).optional(), // Accept boolean or string
           ownerId: z.number().optional(), // Pass userId from mobile
+          customModality: z.string().optional(), // Modalidade personalizada quando groupType = 'other'
         }))
         .mutation(async ({ input }) => {
           try {
