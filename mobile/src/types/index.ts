@@ -17,16 +17,17 @@ export type RootStackParamList = {
   UserGrid: { userId: number; userName?: string };
   Chat: { recipientId: number; recipientName: string };
   AthleteHome: undefined;
-  Groups: undefined;
-  MyGroups: undefined;
-  CreateGroup: undefined;
-  GroupDetail: { groupId: number; groupName: string; isAdmin?: boolean };
-  InviteMembers: { groupId: number; groupName: string };
+  // REMOVED: Group screens (temporarily disabled)
+  // Groups: undefined;
+  // MyGroups: undefined;
+  // CreateGroup: undefined;
+  // GroupDetail: { groupId: number; groupName: string; isAdmin?: boolean };
+  // InviteMembers: { groupId: number; groupName: string };
   CreateTraining: { groupId?: number } | undefined;
-  // V12.10 - Groups Expanded
-  ManageMembers: { groupId: number; groupName: string; userRole: string };
-  GroupRanking: { groupId: number; groupName: string; groupType: string };
-  GroupChat: { groupId: number; groupName: string };
+  // V12.10 - Groups Expanded (REMOVED)
+  // ManageMembers: { groupId: number; groupName: string; userRole: string };
+  // GroupRanking: { groupId: number; groupName: string; groupType: string };
+  // GroupChat: { groupId: number; groupName: string };
   CreateFunctionalTraining: { groupId: number; groupName: string; groupType?: string };
   CreateHike: { groupId: number; groupName: string; groupType?: string };
   CreateYogaSession: { groupId: number; groupName: string; groupType?: string };
