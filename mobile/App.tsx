@@ -90,6 +90,7 @@ import CreateFunctionalTrainingScreen from './src/screens/CreateFunctionalTraini
 import CreateHikeScreen from './src/screens/CreateHikeScreen';
 import CreateYogaSessionScreen from './src/screens/CreateYogaSessionScreen';
 import CreateFightTrainingScreen from './src/screens/CreateFightTrainingScreen';
+import MyGroupsScreen from './src/screens/MyGroupsScreen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -212,6 +213,11 @@ export default function App() {
               />
               
               {/* Community Stack - Grupos */}
+              <Stack.Screen 
+                name="MyGroups" 
+                component={MyGroupsScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
               <Stack.Screen 
                 name="CreateGroup" 
                 component={CreateGroupScreen} 
