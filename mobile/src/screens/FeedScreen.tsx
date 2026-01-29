@@ -55,7 +55,7 @@ const { width } = Dimensions.get('window');
 
 // Quick Actions para navegação - Ordem conforme solicitação do usuário
 const QUICK_ACTIONS = [
-  { id: 'criar-grupo', icon: 'add-circle', label: 'Criar Grupo', screen: 'CreateGroup', color: '#22c55e' },
+  { id: 'meus-grupos', icon: 'people', label: 'Meus Grupos', screen: 'MyGroups', color: '#22c55e' },
   { id: 'treinar', icon: 'fitness', label: 'Treinar', screen: 'TrainHub', color: '#3b82f6' },
   { id: 'competicoes', icon: 'trophy', label: 'Competições', screen: 'AthleteHome', color: '#fbbf24' },
   { id: 'agenda', icon: 'calendar', label: 'Agenda', screen: 'Agenda', color: '#f97316' },
@@ -71,6 +71,23 @@ const TRAINING_TYPE_CONFIG: { [key: string]: { icon: string; color: string; labe
   swimming: { icon: 'water', color: '#06b6d4', label: 'Natação' },
   brick: { icon: 'fitness', color: '#8b5cf6', label: 'Brick' },
   default: { icon: 'fitness', color: '#a3e635', label: 'Treino' },
+};
+
+// Helper function to validate video URLs
+// Returns true only for valid HTTP/HTTPS URLs
+const isValidVideoUrl = (url: string | null | undefined): boolean => {
+  if (!url || typeof url !== 'string') return false;
+  // Only accept HTTP/HTTPS URLs
+  if (url.startsWith('https://') || url.startsWith('http://')) {
+    return true;
+  }
+  // Reject local file URLs, photo library URLs, etc.
+  if (url.startsWith('file:') || url.startsWith('ph:') || url.startsWith('content:')) {
+    console.warn(`[FeedScreen] ⚠️ Invalid video URL (local): ${url.substring(0, 50)}...`);
+    return false;
+  }
+  console.warn(`[FeedScreen] ⚠️ Invalid video URL (unknown protocol): ${url.substring(0, 50)}...`);
+  return false;
 };
 
 // Interface para lista de vídeos
@@ -479,8 +496,8 @@ export default function FeedScreen() {
     const viewportTop = scrollY;
     const viewportBottom = scrollY + viewportHeight;
     
-    // Get all video posts
-    const videoPosts = feedPosts.filter((p: any) => p.videoUrl);
+    // Get all video posts with valid URLs only
+    const videoPosts = feedPosts.filter((p: any) => isValidVideoUrl(p.videoUrl));
     
     // Calculate visibility for each video
     let currentVideoVisibility = 0; // Visibility of the currently active video
@@ -562,7 +579,7 @@ export default function FeedScreen() {
     
     // If this is the first video and no active video yet, set it as active
     if (activeVideoPostId === null) {
-      const videoPosts = feedPosts.filter((p: any) => p.videoUrl);
+      const videoPosts = feedPosts.filter((p: any) => isValidVideoUrl(p.videoUrl));
       if (videoPosts.length > 0 && videoPosts[0].id === postId) {
         setActiveVideoPostId(postId);
         const playerId = `inline-${postId}`;
@@ -754,13 +771,13 @@ export default function FeedScreen() {
           <Text style={styles.postContent}>{item.content}</Text>
         )}
 
-        {/* Post Image */}
-        {item.imageUrl && !item.videoUrl && (
+        {/* Post Image - Show if no video OR if video URL is invalid */}
+        {item.imageUrl && !isValidVideoUrl(item.videoUrl) && (
           <Image source={{ uri: item.imageUrl }} style={styles.postImage} />
         )}
 
-        {/* Post Video */}
-        {item.videoUrl && (
+        {/* Post Video - Only render if URL is valid (HTTP/HTTPS) */}
+        {isValidVideoUrl(item.videoUrl) && (
           <InlineVideoPlayer 
             videoUrl={item.videoUrl} 
             thumbnailUrl={item.videoThumbnailUrl || item.imageUrl}
@@ -771,7 +788,7 @@ export default function FeedScreen() {
             onMuteToggle={handleGlobalAudioToggle}
             onEnterFullscreen={handleEnterFullscreen}
             videos={feedPosts
-              .filter((p: any) => p.videoUrl)
+              .filter((p: any) => isValidVideoUrl(p.videoUrl))
               .map((p: any) => ({
                 id: p.id,
                 videoUrl: p.videoUrl,
@@ -1110,7 +1127,7 @@ export default function FeedScreen() {
                 style={styles.postWrapper}
                 onLayout={(event) => {
                   // Track position of video posts for scroll-based focus detection
-                  if (post.videoUrl) {
+                  if (isValidVideoUrl(post.videoUrl)) {
                     handlePostLayout(post.id, event);
                   }
                 }}
@@ -1250,8 +1267,8 @@ export default function FeedScreen() {
                     id={post.id}
                     thumbnailUrl={post.videoThumbnailUrl || post.imageUrl}
                     mediaUrl={post.imageUrl}
-                    videoUrl={post.videoUrl}
-                    mediaType={post.videoUrl ? 'video' : 'image'}
+                    videoUrl={isValidVideoUrl(post.videoUrl) ? post.videoUrl : undefined}
+                    mediaType={isValidVideoUrl(post.videoUrl) ? 'video' : 'image'}
                     content={post.content}
                     size={(width - 8) / 3}
                     gap={2}
