@@ -143,8 +143,9 @@ export default function PostDetailScreen({ navigation, route }: PostDetailScreen
 
   useEffect(() => {
     // Update player muted state
+    // CRITICAL: Ensure boolean, not string
     if (player) {
-      player.muted = isMuted;
+      player.muted = Boolean(isMuted);
     }
   }, [isMuted, player]);
 

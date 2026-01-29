@@ -189,8 +189,8 @@ const InlineVideoPlayer = ({
       console.log(`[InlineVideoPlayer] ${playerId} - useEffect applying audio: shouldHaveAudio=${shouldHaveAudio}, globalAudioEnabled=${globalAudioEnabled}, isActive=${isActive}`);
       
       // SYNCHRONOUS API - No race conditions!
-      // Apply muted state
-      player.muted = !shouldHaveAudio;
+      // Apply muted state - CRITICAL: Ensure boolean, not string
+      player.muted = Boolean(!shouldHaveAudio);
       
       // Apply volume - IMPORTANT: volume is separate from muted
       // Even if muted=false, volume=0 means no sound
@@ -255,7 +255,8 @@ const InlineVideoPlayer = ({
     // The controller will handle the state, but we want instant feedback
     if (player && isActive) {
       console.log(`[InlineVideoPlayer] ${playerId} - Applying audio directly: muted=${!newAudioState}, volume=${newAudioState ? 1 : 0}`);
-      player.muted = !newAudioState;
+      // CRITICAL: Ensure boolean, not string
+      player.muted = Boolean(!newAudioState);
       player.volume = newAudioState ? 1 : 0;
       
       // Force play if not playing
@@ -280,6 +281,7 @@ const InlineVideoPlayer = ({
     // Pause and mute this inline player
     if (player) {
       player.pause();
+      // CRITICAL: Ensure boolean, not string
       player.muted = true;
     }
     setIsPaused(true);

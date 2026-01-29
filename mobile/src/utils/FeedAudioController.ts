@@ -24,6 +24,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type AudioContext = 'INLINE' | 'FULLSCREEN';
 
+/**
+ * Normalize any value to boolean
+ * Handles: boolean, string "true"/"false", numbers, null/undefined
+ */
+function normalizeBool(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true' || value === '1';
+  if (typeof value === 'number') return value !== 0;
+  return !!value;
+}
+
 interface AudioState {
   audioEnabled: boolean;
   context: AudioContext;
@@ -159,24 +170,28 @@ class FeedAudioControllerClass {
   
   /**
    * Mute a player (synchronous - expo-video)
+   * Always uses boolean true for player.muted
    */
   private mutePlayer(player: VideoPlayer | null): void {
     if (!player) return;
     try {
+      // CRITICAL: Ensure boolean, not string
       player.muted = true;
       player.volume = 0;
     } catch (e) {
-      // Ignore errors
+      this.log(`mutePlayer error: ${e}`);
     }
   }
   
   /**
    * Unmute a player and ensure it's playing (synchronous - expo-video)
+   * Always uses boolean false for player.muted
    */
   private unmutePlayer(player: VideoPlayer | null): void {
     if (!player) return;
     try {
       this.log(`unmutePlayer - Setting muted=false, volume=1`);
+      // CRITICAL: Ensure boolean, not string
       player.muted = false;
       player.volume = 1;
       
@@ -270,10 +285,12 @@ class FeedAudioControllerClass {
   
   /**
    * Set audio enabled state directly
+   * Accepts boolean or string ("true"/"false") for safety
    */
-  setAudioEnabled(enabled: boolean): void {
-    this.audioEnabled = enabled;
-    this.log(`setAudioEnabled: ${enabled}`);
+  setAudioEnabled(enabled: boolean | string): void {
+    const normalized = normalizeBool(enabled);
+    this.audioEnabled = normalized;
+    this.log(`setAudioEnabled: ${normalized} (input was: ${typeof enabled} ${enabled})`);
     this.saveAudioPreference();
     this.applyAudioState();
   }

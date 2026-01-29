@@ -20,6 +20,17 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type PlayerType = 'feed' | 'fullscreen';
 
+/**
+ * Normalize any value to boolean
+ * Handles: boolean, string "true"/"false", numbers, null/undefined
+ */
+function normalizeBool(value: unknown): boolean {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'string') return value.toLowerCase() === 'true' || value === '1';
+  if (typeof value === 'number') return value !== 0;
+  return !!value;
+}
+
 interface RegisteredPlayer {
   id: string;
   ref: Video | null;
@@ -66,8 +77,9 @@ class VideoAudioManager {
     try {
       const stored = await AsyncStorage.getItem(AUDIO_PREFERENCE_KEY);
       if (stored !== null) {
-        this.feedAudioEnabled = stored === 'true';
-        console.log(`[AudioManager] Loaded audio preference: ${this.feedAudioEnabled}`);
+        // CRITICAL: Normalize to boolean, never pass string to native
+        this.feedAudioEnabled = normalizeBool(stored);
+        console.log(`[AudioManager] Loaded audio preference: ${this.feedAudioEnabled} (stored was: ${stored})`);
       }
     } catch (error) {
       console.error('[AudioManager] Failed to load audio preference:', error);
@@ -210,16 +222,18 @@ class VideoAudioManager {
 
   /**
    * Set global audio state directly
+   * Accepts boolean or string ("true"/"false") for safety
    */
-  async setAudioEnabled(enabled: boolean): Promise<void> {
-    if (this.feedAudioEnabled === enabled) return;
+  async setAudioEnabled(enabled: boolean | string): Promise<void> {
+    const normalized = normalizeBool(enabled);
+    if (this.feedAudioEnabled === normalized) return;
     
-    this.feedAudioEnabled = enabled;
-    console.log(`[AudioManager] Audio set to: ${this.feedAudioEnabled}`);
+    this.feedAudioEnabled = normalized;
+    console.log(`[AudioManager] Audio set to: ${this.feedAudioEnabled} (input was: ${typeof enabled} ${enabled})`);
     
     await this.saveAudioPreference();
     
-    if (enabled) {
+    if (normalized) {
       // Enable audio for the active video
       if (this.activeVideoId) {
         const activePlayer = this.registeredPlayers.get(this.activeVideoId);
