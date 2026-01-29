@@ -1712,18 +1712,13 @@ export const appRouter = router({
               ownerId,
             });
             
+            // Pass only essential fields to avoid database column mismatch
             const groupId = await db.createGroup({
               name: input.name,
               description: input.description,
               privacy: input.privacy,
-              groupType: input.groupType,
-              sportTypes: sportTypesJson, // JSON string
               city: input.city,
               state: input.state,
-              neighborhood: input.neighborhood,
-              meetingPoint: input.meetingPoint,
-              allowJoinRequests,
-              requiresApproval,
               ownerId,
             });
             

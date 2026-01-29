@@ -2996,8 +2996,23 @@ export async function createGroup(group: InsertGroup): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  const result = await db.insert(groups).values(group);
+  // Use only essential fields that definitely exist in the database
+  const safeGroup = {
+    name: group.name,
+    description: group.description || null,
+    city: group.city || null,
+    state: group.state || null,
+    privacy: group.privacy || 'public',
+    ownerId: group.ownerId,
+    status: 'active' as const,
+  };
+  
+  console.log('[createGroup] Inserting with safe fields:', safeGroup);
+  
+  const result = await db.insert(groups).values(safeGroup);
   const groupId = result[0].insertId;
+  
+  console.log('[createGroup] Group created with ID:', groupId);
   
   // Add owner as member
   await db.insert(groupMembers).values({
@@ -3007,10 +3022,14 @@ export async function createGroup(group: InsertGroup): Promise<number> {
     status: 'active',
   });
   
+  console.log('[createGroup] Owner added as member');
+  
   // Update member count
   await db.update(groups)
     .set({ memberCount: 1 })
     .where(eq(groups.id, groupId));
+  
+  console.log('[createGroup] Member count updated');
   
   return groupId;
 }
@@ -3019,22 +3038,34 @@ export async function getUserGroups(userId: number): Promise<any[]> {
   const db = await getDb();
   if (!db) return [];
   
-  const result = await db.select({
-    group: groups,
-    membership: groupMembers,
-  })
-  .from(groupMembers)
-  .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-  .where(and(
-    eq(groupMembers.userId, userId),
-    eq(groupMembers.status, 'active'),
-    eq(groups.status, 'active')
-  ));
+  console.log('[getUserGroups] Fetching groups for userId:', userId);
   
-  return result.map(r => ({
-    ...r.group,
-    role: r.membership.role,
-  }));
+  try {
+    const result = await db.select({
+      id: groups.id,
+      name: groups.name,
+      description: groups.description,
+      city: groups.city,
+      state: groups.state,
+      privacy: groups.privacy,
+      memberCount: groups.memberCount,
+      ownerId: groups.ownerId,
+      role: groupMembers.role,
+    })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(and(
+      eq(groupMembers.userId, userId),
+      eq(groupMembers.status, 'active'),
+      eq(groups.status, 'active')
+    ));
+    
+    console.log('[getUserGroups] Found', result.length, 'groups');
+    return result;
+  } catch (error) {
+    console.error('[getUserGroups] Error:', error);
+    return [];
+  }
 }
 
 export async function joinGroup(groupId: number, userId: number): Promise<boolean> {
