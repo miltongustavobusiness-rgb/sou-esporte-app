@@ -50,6 +50,7 @@ import PaymentsScreen from './src/screens/PaymentsScreen';
 import EventResultsScreen from './src/screens/EventResultsScreen';
 import FeedScreen from './src/screens/FeedScreen';
 import CreateGroupScreen from './src/screens/CreateGroupScreen';
+import MyGroupsScreen from './src/screens/MyGroupsScreen';
 import GroupDetailScreen from './src/screens/GroupDetailScreen';
 import InviteMembersScreen from './src/screens/InviteMembersScreen';
 import TrainHubScreen from './src/screens/TrainHubScreen';
@@ -212,6 +213,11 @@ export default function App() {
               />
               
               {/* Community Stack - Grupos */}
+              <Stack.Screen 
+                name="MyGroups" 
+                component={MyGroupsScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
               <Stack.Screen 
                 name="CreateGroup" 
                 component={CreateGroupScreen} 

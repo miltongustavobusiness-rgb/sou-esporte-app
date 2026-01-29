@@ -55,7 +55,7 @@ const { width } = Dimensions.get('window');
 
 // Quick Actions para navegação - Ordem conforme solicitação do usuário
 const QUICK_ACTIONS = [
-  { id: 'criar-grupo', icon: 'add-circle', label: 'Criar Grupo', screen: 'CreateGroup', color: '#22c55e' },
+  { id: 'meus-grupos', icon: 'people', label: 'Meus Grupos', screen: 'MyGroups', color: '#22c55e' },
   { id: 'treinar', icon: 'fitness', label: 'Treinar', screen: 'TrainHub', color: '#3b82f6' },
   { id: 'competicoes', icon: 'trophy', label: 'Competições', screen: 'AthleteHome', color: '#fbbf24' },
   { id: 'agenda', icon: 'calendar', label: 'Agenda', screen: 'Agenda', color: '#f97316' },
