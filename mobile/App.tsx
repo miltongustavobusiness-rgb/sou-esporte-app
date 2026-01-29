@@ -214,42 +214,13 @@ export default function App() {
               />
               
               {/* Community Stack - Grupos (REMOVED - temporarily disabled)
-              <Stack.Screen 
-                name="MyGroups" 
-                component={MyGroupsScreen} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="CreateGroup" 
-                component={CreateGroupScreen} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              <Stack.Screen 
-                name="GroupDetail" 
-                component={GroupDetailScreen} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="InviteMembers" 
-                component={InviteMembersScreen} 
-                options={{ animation: 'slide_from_bottom' }}
-              />
-              {/* V12.10 - Groups Expanded */}
-              <Stack.Screen 
-                name="ManageMembers" 
-                component={ManageMembersScreen} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="GroupRanking" 
-                component={GroupRankingScreen} 
-                options={{ animation: 'slide_from_right' }}
-              />
-              <Stack.Screen 
-                name="GroupChat" 
-                component={GroupChatScreen} 
-                options={{ animation: 'slide_from_right' }}
-              />
+              <Stack.Screen name="MyGroups" component={MyGroupsScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="InviteMembers" component={InviteMembersScreen} options={{ animation: 'slide_from_bottom' }} />
+              <Stack.Screen name="ManageMembers" component={ManageMembersScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="GroupRanking" component={GroupRankingScreen} options={{ animation: 'slide_from_right' }} />
+              <Stack.Screen name="GroupChat" component={GroupChatScreen} options={{ animation: 'slide_from_right' }} />
               */}
               <Stack.Screen 
                 name="CreateFunctionalTraining" 
