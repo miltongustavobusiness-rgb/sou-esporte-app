@@ -1628,13 +1628,9 @@ ApiService.prototype.getSavedPosts = async function(limit: number = 50, offset: 
 };
 
 // Groups
-ApiService.prototype.getUserGroups = async function(userId?: number): Promise<Group[]> {
+ApiService.prototype.getUserGroups = async function(): Promise<Group[]> {
   try {
-    if (!userId) {
-      console.warn('getUserGroups called without userId');
-      return [];
-    }
-    return await this.trpcQuery<Group[]>('mobile.groups.list', { userId });
+    return await this.trpcQuery<Group[]>('groups.list', {});
   } catch (error) {
     console.error('Get user groups error:', error);
     return [];
@@ -1643,7 +1639,7 @@ ApiService.prototype.getUserGroups = async function(userId?: number): Promise<Gr
 
 ApiService.prototype.getGroup = async function(groupId: number): Promise<Group | null> {
   try {
-    return await this.trpcQuery<Group>('mobile.groups.getById', { groupId });
+    return await this.trpcQuery<Group>('groups.get', { groupId });
   } catch (error) {
     console.error('Get group error:', error);
     return null;
@@ -1655,17 +1651,13 @@ ApiService.prototype.createGroup = async function(data: {
   description?: string;
   privacy?: 'public' | 'private';
   groupType?: 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other';
-  customModality?: string; // Modalidade personalizada quando groupType = 'other'
   city?: string;
-  state?: string; // Sigla do estado (ES, SP, RJ)
-  neighborhood?: string; // Bairro
+  state?: string;
   meetingPoint?: string;
   requiresApproval?: boolean;
-  ownerId?: number;
 }): Promise<{ success: boolean; groupId?: number }> {
   try {
-    // Usa mobile.groups.create que é público
-    return await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.groups.create', data);
+    return await this.trpcMutation<{ success: boolean; groupId: number }>('groups.create', data);
   } catch (error) {
     console.error('Create group error:', error);
     return { success: false };
@@ -1674,7 +1666,7 @@ ApiService.prototype.createGroup = async function(data: {
 
 ApiService.prototype.joinGroup = async function(groupId: number): Promise<{ success: boolean }> {
   try {
-    return await this.trpcMutation<{ success: boolean }>('mobile.groups.join', { groupId });
+    return await this.trpcMutation<{ success: boolean }>('groups.join', { groupId });
   } catch (error) {
     console.error('Join group error:', error);
     return { success: false };
@@ -1683,119 +1675,9 @@ ApiService.prototype.joinGroup = async function(groupId: number): Promise<{ succ
 
 ApiService.prototype.leaveGroup = async function(groupId: number): Promise<{ success: boolean }> {
   try {
-    return await this.trpcMutation<{ success: boolean }>('mobile.groups.leave', { groupId });
+    return await this.trpcMutation<{ success: boolean }>('groups.leave', { groupId });
   } catch (error) {
     console.error('Leave group error:', error);
-    return { success: false };
-  }
-};
-
-ApiService.prototype.getGroupMembership = async function(groupId: number, userId: number): Promise<any> {
-  try {
-    return await this.trpcQuery<any>('mobile.groups.getMembership', { groupId, userId });
-  } catch (error) {
-    console.error('Get group membership error:', error);
-    return null;
-  }
-};
-
-ApiService.prototype.getGroupMembers = async function(groupId: number): Promise<any[]> {
-  try {
-    return await this.trpcQuery<any[]>('mobile.groups.getMembers', { groupId });
-  } catch (error) {
-    console.error('Get group members error:', error);
-    return [];
-  }
-};
-
-ApiService.prototype.getGroupTrainings = async function(groupId: number): Promise<any[]> {
-  try {
-    return await this.trpcQuery<any[]>('mobile.groups.getTrainings', { groupId });
-  } catch (error) {
-    console.error('Get group trainings error:', error);
-    return [];
-  }
-};
-
-ApiService.prototype.getGroupPosts = async function(groupId: number): Promise<any[]> {
-  try {
-    return await this.trpcQuery<any[]>('mobile.groups.getPosts', { groupId });
-  } catch (error) {
-    console.error('Get group posts error:', error);
-    return [];
-  }
-};
-
-ApiService.prototype.joinGroupTraining = async function(trainingId: number, trainingType: string, response: string): Promise<{ success: boolean }> {
-  try {
-    return await this.trpcMutation<{ success: boolean }>('mobile.groups.joinTraining', { trainingId, trainingType, response });
-  } catch (error) {
-    console.error('Join group training error:', error);
-    return { success: false };
-  }
-};
-
-ApiService.prototype.updateGroupMember = async function(groupId: number, userId: number, data: { role?: string; canCreateTraining?: boolean }): Promise<{ success: boolean }> {
-  try {
-    return await this.trpcMutation<{ success: boolean }>('mobile.groups.updateMember', { groupId, userId, ...data });
-  } catch (error) {
-    console.error('Update group member error:', error);
-    return { success: false };
-  }
-};
-
-ApiService.prototype.removeGroupMember = async function(groupId: number, userId: number): Promise<{ success: boolean }> {
-  try {
-    return await this.trpcMutation<{ success: boolean }>('mobile.groups.removeMember', { groupId, userId });
-  } catch (error) {
-    console.error('Remove group member error:', error);
-    return { success: false };
-  }
-};
-
-ApiService.prototype.getGroupMessages = async function(groupId: number, limit?: number): Promise<any[]> {
-  try {
-    return await this.trpcQuery<any[]>('mobile.groups.getMessages', { groupId, limit: limit || 50 });
-  } catch (error) {
-    console.error('Get group messages error:', error);
-    return [];
-  }
-};
-
-ApiService.prototype.sendGroupMessage = async function(groupId: number, content: string, userId: number, replyToId?: number): Promise<{ success: boolean }> {
-  try {
-    return await this.trpcMutation<{ success: boolean }>('mobile.groups.sendMessage', { groupId, content, userId, replyToId });
-  } catch (error) {
-    console.error('Send group message error:', error);
-    return { success: false };
-  }
-};
-
-// ==================== SPORT MODALITIES ====================
-
-ApiService.prototype.getAllModalities = async function(): Promise<any[]> {
-  try {
-    return await this.trpcQuery<any[]>('mobile.modalities.getAll', {});
-  } catch (error) {
-    console.error('Get all modalities error:', error);
-    return [];
-  }
-};
-
-ApiService.prototype.searchModalities = async function(query: string): Promise<any[]> {
-  try {
-    return await this.trpcQuery<any[]>('mobile.modalities.search', { query });
-  } catch (error) {
-    console.error('Search modalities error:', error);
-    return [];
-  }
-};
-
-ApiService.prototype.createModality = async function(data: { name: string; icon?: string; createdBy?: number }): Promise<{ success: boolean; modalityId?: number }> {
-  try {
-    return await this.trpcMutation<{ success: boolean; modalityId: number }>('mobile.modalities.create', data);
-  } catch (error) {
-    console.error('Create modality error:', error);
     return { success: false };
   }
 };
@@ -1814,20 +1696,11 @@ declare module './api' {
     likeComment(commentId: number): Promise<{ success: boolean }>;
     unlikeComment(commentId: number): Promise<{ success: boolean }>;
     reportContent(data: { targetType: string; targetId: number; reason: string; description?: string }): Promise<{ success: boolean; reportId?: number }>;
-    getUserGroups(userId?: number): Promise<Group[]>;
+    getUserGroups(): Promise<Group[]>;
     getGroup(groupId: number): Promise<Group | null>;
     createGroup(data: any): Promise<{ success: boolean; groupId?: number }>;
     joinGroup(groupId: number): Promise<{ success: boolean }>;
     leaveGroup(groupId: number): Promise<{ success: boolean }>;
-    getGroupMembership(groupId: number, userId: number): Promise<any>;
-    getGroupMembers(groupId: number): Promise<any[]>;
-    getGroupTrainings(groupId: number): Promise<any[]>;
-    getGroupPosts(groupId: number): Promise<any[]>;
-    joinGroupTraining(trainingId: number, trainingType: string, response: string): Promise<{ success: boolean }>;
-    updateGroupMember(groupId: number, userId: number, data: { role?: string; canCreateTraining?: boolean }): Promise<{ success: boolean }>;
-    removeGroupMember(groupId: number, userId: number): Promise<{ success: boolean }>;
-    getGroupMessages(groupId: number, limit?: number): Promise<any[]>;
-    sendGroupMessage(groupId: number, content: string, userId: number, replyToId?: number): Promise<{ success: boolean }>;
   }
 }
 
@@ -2716,9 +2589,5 @@ declare module './api' {
     markSocialNotificationRead(id: number): Promise<{ success: boolean }>;
     markAllSocialNotificationsRead(): Promise<{ success: boolean }>;
     getUnreadSocialNotificationsCount(): Promise<number>;
-    // Sport modalities
-    getAllModalities(): Promise<any[]>;
-    searchModalities(query: string): Promise<any[]>;
-    createModality(data: { name: string; icon?: string; createdBy?: number }): Promise<{ success: boolean; modalityId?: number }>;
   }
 }

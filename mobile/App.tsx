@@ -49,10 +49,9 @@ import HelpScreen from './src/screens/HelpScreen';
 import PaymentsScreen from './src/screens/PaymentsScreen';
 import EventResultsScreen from './src/screens/EventResultsScreen';
 import FeedScreen from './src/screens/FeedScreen';
-// REMOVED: Group screens (temporarily disabled)
-// import CreateGroupScreen from './src/screens/CreateGroupScreen';
-// import GroupDetailScreen from './src/screens/GroupDetailScreen';
-// import InviteMembersScreen from './src/screens/InviteMembersScreen';
+import CreateGroupScreen from './src/screens/CreateGroupScreen';
+import GroupDetailScreen from './src/screens/GroupDetailScreen';
+import InviteMembersScreen from './src/screens/InviteMembersScreen';
 import TrainHubScreen from './src/screens/TrainHubScreen';
 import DiscoverTrainingsScreen from './src/screens/DiscoverTrainingsScreen';
 import CreateTrainingScreen from './src/screens/CreateTrainingScreen';
@@ -83,15 +82,14 @@ import SocialNotificationsScreen from './src/screens/SocialNotificationsScreen';
 import EditGridBioScreen from './src/screens/EditGridBioScreen';
 import AccountRecoveryScreen from './src/screens/AccountRecoveryScreen';
 import EmailVerificationScreen from './src/screens/EmailVerificationScreen';
-// V12.10 - Groups Expanded (REMOVED - temporarily disabled)
-// import ManageMembersScreen from './src/screens/ManageMembersScreen';
-// import GroupRankingScreen from './src/screens/GroupRankingScreen';
-// import GroupChatScreen from './src/screens/GroupChatScreen';
+// V12.10 - Groups Expanded
+import ManageMembersScreen from './src/screens/ManageMembersScreen';
+import GroupRankingScreen from './src/screens/GroupRankingScreen';
+import GroupChatScreen from './src/screens/GroupChatScreen';
 import CreateFunctionalTrainingScreen from './src/screens/CreateFunctionalTrainingScreen';
 import CreateHikeScreen from './src/screens/CreateHikeScreen';
 import CreateYogaSessionScreen from './src/screens/CreateYogaSessionScreen';
 import CreateFightTrainingScreen from './src/screens/CreateFightTrainingScreen';
-// import MyGroupsScreen from './src/screens/MyGroupsScreen';
 
 // Keep the splash screen visible while we fetch resources
 SplashScreen.preventAutoHideAsync();
@@ -213,15 +211,38 @@ export default function App() {
                 options={{ animation: 'fade' }}
               />
               
-              {/* Community Stack - Grupos (REMOVED - temporarily disabled)
-              <Stack.Screen name="MyGroups" component={MyGroupsScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="CreateGroup" component={CreateGroupScreen} options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="GroupDetail" component={GroupDetailScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="InviteMembers" component={InviteMembersScreen} options={{ animation: 'slide_from_bottom' }} />
-              <Stack.Screen name="ManageMembers" component={ManageMembersScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="GroupRanking" component={GroupRankingScreen} options={{ animation: 'slide_from_right' }} />
-              <Stack.Screen name="GroupChat" component={GroupChatScreen} options={{ animation: 'slide_from_right' }} />
-              */}
+              {/* Community Stack - Grupos */}
+              <Stack.Screen 
+                name="CreateGroup" 
+                component={CreateGroupScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              <Stack.Screen 
+                name="GroupDetail" 
+                component={GroupDetailScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="InviteMembers" 
+                component={InviteMembersScreen} 
+                options={{ animation: 'slide_from_bottom' }}
+              />
+              {/* V12.10 - Groups Expanded */}
+              <Stack.Screen 
+                name="ManageMembers" 
+                component={ManageMembersScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="GroupRanking" 
+                component={GroupRankingScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
+              <Stack.Screen 
+                name="GroupChat" 
+                component={GroupChatScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
               <Stack.Screen 
                 name="CreateFunctionalTraining" 
                 component={CreateFunctionalTrainingScreen} 

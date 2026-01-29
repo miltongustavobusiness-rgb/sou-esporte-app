@@ -55,6 +55,7 @@ const { width } = Dimensions.get('window');
 
 // Quick Actions para navegação - Ordem conforme solicitação do usuário
 const QUICK_ACTIONS = [
+  { id: 'criar-grupo', icon: 'add-circle', label: 'Criar Grupo', screen: 'CreateGroup', color: '#22c55e' },
   { id: 'treinar', icon: 'fitness', label: 'Treinar', screen: 'TrainHub', color: '#3b82f6' },
   { id: 'competicoes', icon: 'trophy', label: 'Competições', screen: 'AthleteHome', color: '#fbbf24' },
   { id: 'agenda', icon: 'calendar', label: 'Agenda', screen: 'Agenda', color: '#f97316' },
@@ -188,8 +189,8 @@ const InlineVideoPlayer = ({
       console.log(`[InlineVideoPlayer] ${playerId} - useEffect applying audio: shouldHaveAudio=${shouldHaveAudio}, globalAudioEnabled=${globalAudioEnabled}, isActive=${isActive}`);
       
       // SYNCHRONOUS API - No race conditions!
-      // Apply muted state - CRITICAL: Ensure boolean, not string
-      player.muted = Boolean(!shouldHaveAudio);
+      // Apply muted state
+      player.muted = !shouldHaveAudio;
       
       // Apply volume - IMPORTANT: volume is separate from muted
       // Even if muted=false, volume=0 means no sound
@@ -254,8 +255,7 @@ const InlineVideoPlayer = ({
     // The controller will handle the state, but we want instant feedback
     if (player && isActive) {
       console.log(`[InlineVideoPlayer] ${playerId} - Applying audio directly: muted=${!newAudioState}, volume=${newAudioState ? 1 : 0}`);
-      // CRITICAL: Ensure boolean, not string
-      player.muted = Boolean(!newAudioState);
+      player.muted = !newAudioState;
       player.volume = newAudioState ? 1 : 0;
       
       // Force play if not playing
@@ -280,7 +280,6 @@ const InlineVideoPlayer = ({
     // Pause and mute this inline player
     if (player) {
       player.pause();
-      // CRITICAL: Ensure boolean, not string
       player.muted = true;
     }
     setIsPaused(true);

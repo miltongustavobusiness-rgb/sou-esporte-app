@@ -28,8 +28,8 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     setToast({
       visible: true,
-      message: message || '',
-      type: type || 'info',
+      message,
+      type,
     });
   }, []);
 
@@ -37,16 +37,13 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
     setToast(prev => ({ ...prev, visible: false }));
   }, []);
 
-  // Ensure visible is strictly boolean
-  const isVisible = toast.visible === true;
-
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <Toast
-        visible={isVisible}
-        message={toast.message || ''}
-        type={toast.type || 'info'}
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
         onHide={hideToast}
       />
     </ToastContext.Provider>

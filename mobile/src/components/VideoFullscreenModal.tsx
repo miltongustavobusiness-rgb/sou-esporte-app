@@ -86,8 +86,7 @@ const FullscreenVideoItem = React.memo(({
       console.log(`[FullscreenVideoItem] ${playerId} - isCurrentVideo: ${isCurrentVideo}, shouldHaveAudio: ${shouldHaveAudio}`);
       
       // SYNCHRONOUS API - No race conditions!
-      // CRITICAL: Ensure boolean, not string
-      player.muted = Boolean(!shouldHaveAudio);
+      player.muted = !shouldHaveAudio;
       player.volume = shouldHaveAudio ? 1 : 0;
       
       if (isCurrentVideo) {
@@ -103,7 +102,6 @@ const FullscreenVideoItem = React.memo(({
         if (player.playing) {
           player.pause();
         }
-        // CRITICAL: Ensure boolean, not string
         player.muted = true;
       }
     }

@@ -18,22 +18,19 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../types';
-import { COLORS, SPACING, RADIUS } from '../constants/theme';
-import { useApp } from '../contexts/AppContext';
-import { api } from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// IDs devem corresponder aos valores aceitos pelo backend:
-// 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other'
 const MODALIDADES = [
-  { id: 'running', label: 'Corrida', icon: 'walk-outline' },
+  { id: 'corrida', label: 'Corrida', icon: 'walk-outline' },
   { id: 'triathlon', label: 'Triathlon', icon: 'bicycle-outline' },
-  { id: 'cycling', label: 'Bike/Ciclismo', icon: 'bicycle-outline' },
-  { id: 'swimming', label: 'Natação', icon: 'water-outline' },
-  { id: 'fitness', label: 'Funcional/Academia', icon: 'barbell-outline' },
-  { id: 'trail', label: 'Caminhada/Trail', icon: 'trail-sign-outline' },
-  { id: 'other', label: 'Outro', icon: 'fitness-outline' },
+  { id: 'bike', label: 'Bike', icon: 'bicycle-outline' },
+  { id: 'natacao', label: 'Natação', icon: 'water-outline' },
+  { id: 'funcional', label: 'Funcional Avançado', icon: 'barbell-outline' },
+  { id: 'caminhada_trail', label: 'Caminhada/Trail', icon: 'trail-sign-outline' },
+  { id: 'yoga', label: 'Yoga', icon: 'body-outline' },
+  { id: 'lutas', label: 'Lutas/Artes Marciais', icon: 'hand-left-outline' },
+  { id: 'outro', label: 'Outro', icon: 'fitness-outline' },
 ];
 
 const DISTANCIAS_CORRIDA = ['5k', '10k', '15k', '21k', '42k'];
@@ -51,33 +48,14 @@ const PERIODOS_COBRANCA = [
   { id: 'anual', label: 'Anual' },
 ];
 
-// Mapa de estados brasileiros para siglas
-const ESTADOS_BRASIL: { [key: string]: string } = {
-  'acre': 'AC', 'alagoas': 'AL', 'amapá': 'AP', 'amazonas': 'AM', 'bahia': 'BA',
-  'ceará': 'CE', 'distrito federal': 'DF', 'espírito santo': 'ES', 'goiás': 'GO',
-  'maranhão': 'MA', 'mato grosso': 'MT', 'mato grosso do sul': 'MS', 'minas gerais': 'MG',
-  'pará': 'PA', 'paraíba': 'PB', 'paraná': 'PR', 'pernambuco': 'PE', 'piauí': 'PI',
-  'rio de janeiro': 'RJ', 'rio grande do norte': 'RN', 'rio grande do sul': 'RS',
-  'rondônia': 'RO', 'roraima': 'RR', 'santa catarina': 'SC', 'são paulo': 'SP',
-  'sergipe': 'SE', 'tocantins': 'TO',
-};
-
-const getEstadoSigla = (nomeEstado: string): string => {
-  const normalizado = nomeEstado.toLowerCase().trim();
-  return ESTADOS_BRASIL[normalizado] || nomeEstado.slice(0, 2).toUpperCase();
-};
-
 export default function CreateGroupScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user } = useApp();
   
   // Form state
   const [nome, setNome] = useState('');
   const [modalidade, setModalidade] = useState('');
-  const [modalidadePersonalizada, setModalidadePersonalizada] = useState(''); // Para quando selecionar "Outro"
   const [distanciasSelecionadas, setDistanciasSelecionadas] = useState<string[]>([]);
   const [cidade, setCidade] = useState('');
-  const [estado, setEstado] = useState(''); // Sigla do estado (ES, SP, RJ)
   const [bairro, setBairro] = useState('');
   const [visibilidade, setVisibilidade] = useState<'publico' | 'privado'>('publico');
   const [fotoCapa, setFotoCapa] = useState<string | null>(null);
@@ -136,16 +114,14 @@ export default function CreateGroupScreen() {
 
         if (addresses && addresses.length > 0) {
           const address = addresses[0];
-          // Preenche cidade, estado e bairro automaticamente
+          // Preenche cidade e bairro automaticamente
           const cidadeObtida = address.city || address.subregion || address.region || '';
-          const estadoObtido = address.region ? getEstadoSigla(address.region) : '';
           const bairroObtido = address.district || address.street || address.name || '';
           
           if (cidadeObtida) setCidade(cidadeObtida);
-          if (estadoObtido) setEstado(estadoObtido);
           if (bairroObtido) setBairro(bairroObtido);
           
-          console.log('Localização obtida:', { cidade: cidadeObtida, estado: estadoObtido, bairro: bairroObtido });
+          console.log('Localização obtida:', { cidade: cidadeObtida, bairro: bairroObtido });
         }
       }
     } catch (error: any) {
@@ -157,11 +133,11 @@ export default function CreateGroupScreen() {
 
   const getDistanciasParaModalidade = () => {
     switch (modalidade) {
-      case 'running':
+      case 'corrida':
         return DISTANCIAS_CORRIDA;
-      case 'cycling':
+      case 'bike':
         return DISTANCIAS_BIKE;
-      case 'swimming':
+      case 'natacao':
         return DISTANCIAS_NATACAO;
       default:
         return [];
@@ -248,58 +224,42 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
-      // Se selecionou "Outro" e digitou uma modalidade personalizada, criar no banco
-      let groupTypeToUse = modalidade;
-      if (modalidade === 'other' && modalidadePersonalizada.trim()) {
-        try {
-          // Criar a nova modalidade no banco
-          const modalityResult = await api.createModality({
-            name: modalidadePersonalizada.trim(),
-            createdBy: user?.id,
-          });
-          console.log('Modalidade personalizada criada:', modalityResult);
-        } catch (err) {
-          console.log('Erro ao criar modalidade (pode já existir):', err);
-        }
-      }
-      
-      // Criar grupo via API - passa o userId do usuário logado como ownerId
-      const result = await api.createGroup({
-        name: nome,
-        description: regras || undefined,
-        privacy: visibilidade === 'publico' ? 'public' : 'private',
-        groupType: groupTypeToUse as any,
-        customModality: modalidade === 'other' ? modalidadePersonalizada.trim() : undefined, // Modalidade personalizada
-        city: cidade,
-        state: estado || undefined, // Sigla do estado (ES, SP, RJ)
-        neighborhood: bairro || undefined, // Bairro
-        requiresApproval: aprovarMembrosManualmente,
-        ownerId: user?.id, // Usuário logado será o dono do grupo
+      // Simular criação do grupo (integrar com API depois)
+      const novoGrupo = {
+        id: Date.now().toString(),
+        nome,
+        modalidade,
+        distancias: distanciasSelecionadas,
+        cidade,
+        bairro,
+        visibilidade,
+        fotoCapa,
+        regras,
+        permitirTreinosPublicos,
+        aprovarMembrosManualmente,
+        membros: 1,
+        isAdmin: true,
+        // Novos campos
+        tipoGrupo,
+        valorMensalidade: tipoGrupo === 'pago' ? parseInt(valorMensalidade) / 100 : 0,
+        periodoCobranca: tipoGrupo === 'pago' ? periodoCobranca : null,
+        instrutor: tipoGrupo === 'pago' ? {
+          nome: nomeInstrutor,
+          especialidade: especialidadeInstrutor,
+          descricao: descricaoInstrutor,
+          foto: fotoInstrutor,
+        } : null,
+        beneficiosComunidade: tipoGrupo === 'pago' ? beneficiosComunidade : null,
+      };
+
+      console.log('Novo grupo criado:', novoGrupo);
+
+      // Navegar para o detalhe do grupo como admin
+      navigation.navigate('GroupDetail', { 
+        groupId: novoGrupo.id,
+        groupName: novoGrupo.nome,
+        isAdmin: true,
       });
-
-      if (!result.success || !result.groupId) {
-        throw new Error('Falha ao criar grupo');
-      }
-
-      console.log('Grupo criado com sucesso! ID:', result.groupId);
-      
-      Alert.alert(
-        'Sucesso!', 
-        'Grupo criado com sucesso!',
-        [
-          {
-            text: 'Ver Grupo',
-            onPress: () => {
-              // Navegar para o detalhe do grupo como admin
-              navigation.navigate('GroupDetail', { 
-                groupId: result.groupId!,
-                groupName: nome,
-                isAdmin: true,
-              });
-            }
-          }
-        ]
-      );
       
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível criar o grupo. Tente novamente.');
@@ -559,9 +519,6 @@ export default function CreateGroupScreen() {
                 onPress={() => {
                   setModalidade(mod.id);
                   setDistanciasSelecionadas([]);
-                  if (mod.id !== 'other') {
-                    setModalidadePersonalizada('');
-                  }
                 }}
               >
                 <Ionicons
@@ -580,18 +537,6 @@ export default function CreateGroupScreen() {
               </TouchableOpacity>
             ))}
           </View>
-          
-          {/* Campo para modalidade personalizada quando selecionar "Outro" */}
-          {modalidade === 'other' && (
-            <TextInput
-              style={[styles.input, { marginTop: 12 }]}
-              placeholder="Digite o nome da modalidade (ex: Crossfit, Pilates, Surf...)"
-              placeholderTextColor="#666"
-              value={modalidadePersonalizada}
-              onChangeText={setModalidadePersonalizada}
-              autoCapitalize="words"
-            />
-          )}
         </View>
 
         {/* Distâncias (se aplicável) */}
@@ -634,24 +579,13 @@ export default function CreateGroupScreen() {
               />
             </TouchableOpacity>
           </View>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <TextInput
-              style={[styles.input, { flex: 2 }]}
-              placeholder="Cidade"
-              placeholderTextColor="#666"
-              value={cidade}
-              onChangeText={setCidade}
-            />
-            <TextInput
-              style={[styles.input, { flex: 1 }]}
-              placeholder="UF"
-              placeholderTextColor="#666"
-              value={estado}
-              onChangeText={(text) => setEstado(text.toUpperCase().slice(0, 2))}
-              maxLength={2}
-              autoCapitalize="characters"
-            />
-          </View>
+          <TextInput
+            style={styles.input}
+            placeholder="Cidade"
+            placeholderTextColor="#666"
+            value={cidade}
+            onChangeText={setCidade}
+          />
           <TextInput
             style={[styles.input, { marginTop: 8 }]}
             placeholder="Bairro (opcional)"

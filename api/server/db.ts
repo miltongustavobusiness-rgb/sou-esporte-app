@@ -47,7 +47,6 @@ import {
   groupInvites, InsertGroupInvite, GroupInvite,
   groupMessages, InsertGroupMessage, GroupMessage,
   groupRankings, InsertGroupRanking, GroupRanking,
-  sportModalities, InsertSportModality, SportModality,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { nanoid } from 'nanoid';
@@ -2996,23 +2995,8 @@ export async function createGroup(group: InsertGroup): Promise<number> {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
   
-  // Use only essential fields that definitely exist in the database
-  const safeGroup = {
-    name: group.name,
-    description: group.description || null,
-    city: group.city || null,
-    state: group.state || null,
-    privacy: group.privacy || 'public',
-    ownerId: group.ownerId,
-    status: 'active' as const,
-  };
-  
-  console.log('[createGroup] Inserting with safe fields:', safeGroup);
-  
-  const result = await db.insert(groups).values(safeGroup);
+  const result = await db.insert(groups).values(group);
   const groupId = result[0].insertId;
-  
-  console.log('[createGroup] Group created with ID:', groupId);
   
   // Add owner as member
   await db.insert(groupMembers).values({
@@ -3022,14 +3006,10 @@ export async function createGroup(group: InsertGroup): Promise<number> {
     status: 'active',
   });
   
-  console.log('[createGroup] Owner added as member');
-  
   // Update member count
   await db.update(groups)
     .set({ memberCount: 1 })
     .where(eq(groups.id, groupId));
-  
-  console.log('[createGroup] Member count updated');
   
   return groupId;
 }
@@ -3038,34 +3018,22 @@ export async function getUserGroups(userId: number): Promise<any[]> {
   const db = await getDb();
   if (!db) return [];
   
-  console.log('[getUserGroups] Fetching groups for userId:', userId);
+  const result = await db.select({
+    group: groups,
+    membership: groupMembers,
+  })
+  .from(groupMembers)
+  .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+  .where(and(
+    eq(groupMembers.userId, userId),
+    eq(groupMembers.status, 'active'),
+    eq(groups.status, 'active')
+  ));
   
-  try {
-    const result = await db.select({
-      id: groups.id,
-      name: groups.name,
-      description: groups.description,
-      city: groups.city,
-      state: groups.state,
-      privacy: groups.privacy,
-      memberCount: groups.memberCount,
-      ownerId: groups.ownerId,
-      role: groupMembers.role,
-    })
-    .from(groupMembers)
-    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-    .where(and(
-      eq(groupMembers.userId, userId),
-      eq(groupMembers.status, 'active'),
-      eq(groups.status, 'active')
-    ));
-    
-    console.log('[getUserGroups] Found', result.length, 'groups');
-    return result;
-  } catch (error) {
-    console.error('[getUserGroups] Error:', error);
-    return [];
-  }
+  return result.map(r => ({
+    ...r.group,
+    role: r.membership.role,
+  }));
 }
 
 export async function joinGroup(groupId: number, userId: number): Promise<boolean> {
@@ -5793,134 +5761,4 @@ export async function deleteGroupMessage(messageId: number, deletedBy: number): 
       deletedAt: new Date(),
     } as any)
     .where(eq(groupMessages.id, messageId));
-}
-
-// ==================== GROUP POSTS ====================
-
-export async function getGroupPosts(groupId: number, limit: number = 20, offset: number = 0): Promise<any[]> {
-  return getFeedPosts({ groupId, limit, offset });
-}
-
-
-// ==================== SPORT MODALITIES ====================
-
-// Criar slug a partir do nome
-function createSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remove acentos
-    .replace(/[^a-z0-9]+/g, '_') // Substitui caracteres especiais por _
-    .replace(/^_+|_+$/g, ''); // Remove _ do início e fim
-}
-
-// Listar todas as modalidades ativas (padrão + personalizadas)
-export async function getAllModalities(): Promise<SportModality[]> {
-  const db = await getDb();
-  if (!db) return [];
-  
-  const result = await db.select()
-    .from(sportModalities)
-    .where(eq(sportModalities.status, 'active'))
-    .orderBy(desc(sportModalities.isDefault), desc(sportModalities.usageCount), sportModalities.name);
-  
-  return result;
-}
-
-// Buscar modalidades por termo
-export async function searchModalities(query: string): Promise<SportModality[]> {
-  const db = await getDb();
-  if (!db) return [];
-  
-  const result = await db.select()
-    .from(sportModalities)
-    .where(and(
-      eq(sportModalities.status, 'active'),
-      like(sportModalities.name, `%${query}%`)
-    ))
-    .orderBy(desc(sportModalities.isDefault), desc(sportModalities.usageCount))
-    .limit(20);
-  
-  return result;
-}
-
-// Obter modalidade por slug
-export async function getModalityBySlug(slug: string): Promise<SportModality | null> {
-  const db = await getDb();
-  if (!db) return null;
-  
-  const result = await db.select()
-    .from(sportModalities)
-    .where(eq(sportModalities.slug, slug))
-    .limit(1);
-  
-  return result[0] || null;
-}
-
-// Criar nova modalidade personalizada
-export async function createModality(data: {
-  name: string;
-  icon?: string;
-  createdBy?: number;
-}): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const slug = createSlug(data.name);
-  
-  // Verificar se já existe
-  const existing = await getModalityBySlug(slug);
-  if (existing) {
-    return existing.id;
-  }
-  
-  const result = await db.insert(sportModalities).values({
-    slug,
-    name: data.name,
-    icon: data.icon || 'fitness-outline',
-    isDefault: false,
-    createdBy: data.createdBy,
-    usageCount: 1,
-  });
-  
-  return result[0].insertId;
-}
-
-// Incrementar contador de uso de uma modalidade
-export async function incrementModalityUsage(slug: string): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  
-  await db.update(sportModalities)
-    .set({ usageCount: sql`${sportModalities.usageCount} + 1` })
-    .where(eq(sportModalities.slug, slug));
-}
-
-// Inicializar modalidades padrão (rodar uma vez)
-export async function initDefaultModalities(): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  
-  const defaults = [
-    { slug: 'running', name: 'Corrida', icon: 'walk-outline' },
-    { slug: 'cycling', name: 'Bike/Ciclismo', icon: 'bicycle-outline' },
-    { slug: 'triathlon', name: 'Triathlon', icon: 'medal-outline' },
-    { slug: 'swimming', name: 'Natação', icon: 'water-outline' },
-    { slug: 'fitness', name: 'Funcional/Academia', icon: 'barbell-outline' },
-    { slug: 'trail', name: 'Caminhada/Trail', icon: 'trail-sign-outline' },
-    { slug: 'yoga', name: 'Yoga', icon: 'body-outline' },
-    { slug: 'martial_arts', name: 'Lutas/Artes Marciais', icon: 'hand-left-outline' },
-    { slug: 'other', name: 'Outro', icon: 'fitness-outline' },
-  ];
-  
-  for (const mod of defaults) {
-    const existing = await getModalityBySlug(mod.slug);
-    if (!existing) {
-      await db.insert(sportModalities).values({
-        ...mod,
-        isDefault: true,
-        usageCount: 0,
-      });
-    }
-  }
 }

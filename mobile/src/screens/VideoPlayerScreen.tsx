@@ -119,10 +119,9 @@ export default function VideoPlayerScreen({ navigation, route }: VideoPlayerScre
   });
 
   // Atualizar mute state
-  // CRITICAL: Ensure boolean, not string
   useEffect(() => {
     if (player) {
-      player.muted = Boolean(isMuted);
+      player.muted = isMuted;
     }
   }, [isMuted, player]);
 
