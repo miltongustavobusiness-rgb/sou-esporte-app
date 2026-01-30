@@ -32,7 +32,6 @@ import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import BottomNavigation from '../components/BottomNavigation';
 import {
-  getUpcomingTrainings,
   formatRelativeTime,
   formatTrainingDate,
   formatTime,
@@ -401,6 +400,10 @@ export default function FeedScreen() {
   const [likesPostId, setLikesPostId] = useState<number | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   
+  // State for upcoming trainings from API
+  const [upcomingTrainings, setUpcomingTrainings] = useState<any[]>([]);
+  const [trainingsLoading, setTrainingsLoading] = useState(true);
+  
   // Instagram-style global audio state using FeedAudioController
   const [globalAudioEnabled, setGlobalAudioEnabled] = useState(false);
   const [activeVideoPostId, setActiveVideoPostId] = useState<number | null>(null);
@@ -436,6 +439,48 @@ export default function FeedScreen() {
       return () => clearInterval(interval);
     }
   }, [user?.id]);
+  
+  // Fetch upcoming trainings from API
+  useEffect(() => {
+    const fetchUpcomingTrainings = async () => {
+      try {
+        setTrainingsLoading(true);
+        // Get trainings from API - use getTrainings with limit
+        const trainings = await api.getTrainings({ limit: 4 });
+        
+        // Transform API data to match expected format
+        const formattedTrainings = (trainings || []).map((t: any) => ({
+          id: t.id,
+          groupId: t.groupId,
+          title: t.title,
+          description: t.description,
+          trainingType: t.trainingType || 'default',
+          scheduledAt: t.scheduledAt,
+          durationMinutes: t.durationMinutes,
+          meetingPoint: t.meetingPoint,
+          meetingLat: t.meetingLat,
+          meetingLng: t.meetingLng,
+          maxParticipants: t.maxParticipants,
+          goingCount: t.goingCount || 0,
+          maybeCount: t.maybeCount || 0,
+          notGoingCount: t.notGoingCount || 0,
+          status: t.status,
+          createdBy: t.createdBy,
+          group: t.group || { name: 'Grupo', photoUrl: null },
+          type: 'training' as const,
+        }));
+        
+        setUpcomingTrainings(formattedTrainings);
+      } catch (error) {
+        console.error('Error fetching upcoming trainings:', error);
+        setUpcomingTrainings([]);
+      } finally {
+        setTrainingsLoading(false);
+      }
+    };
+    
+    fetchUpcomingTrainings();
+  }, []);
   
   // Reset audio state when screen loses/gains focus
   // When leaving Feed: mute all audio
@@ -587,8 +632,6 @@ export default function FeedScreen() {
     deletePost,
     loadMore 
   } = useFeed();
-  
-  const upcomingTrainings = getUpcomingTrainings();
 
   // Instagram-style refresh animation
   const startSpinAnimation = () => {
