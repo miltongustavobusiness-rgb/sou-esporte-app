@@ -299,7 +299,7 @@ export default function GroupChatScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
@@ -311,9 +311,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#334155',
   },
   backButton: {
     padding: 4,
@@ -325,11 +325,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#f8fafc',
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 2,
   },
   infoButton: {
@@ -358,7 +358,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#334155',
   },
   avatarPlaceholder: {
     width: 36,
@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   otherMessageBubble: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderBottomLeftRadius: 4,
   },
   ownMessageBubble: {
@@ -437,22 +437,22 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 4,
   },
   replyPreview: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#334155',
   },
   replyPreviewContent: {
     flex: 1,
@@ -467,30 +467,30 @@ const styles = StyleSheet.create({
   },
   replyPreviewText: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 2,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#334155',
   },
   attachButton: {
     padding: 8,
   },
   input: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a',
     borderRadius: 20,
     paddingHorizontal: 16,
     paddingVertical: 10,
     paddingTop: 10,
     fontSize: 15,
-    color: '#333',
+    color: '#f8fafc',
     maxHeight: 100,
     marginHorizontal: 8,
   },
