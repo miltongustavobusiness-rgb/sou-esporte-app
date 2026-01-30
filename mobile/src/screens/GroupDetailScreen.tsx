@@ -468,6 +468,14 @@ export default function GroupDetailScreen() {
             </Text>
           </View>
         </View>
+        {canManage && (
+          <TouchableOpacity 
+            style={styles.settingsButton}
+            onPress={() => navigation.navigate('ManageMembers', { groupId, groupName: group?.name || groupName, userRole: membership?.role || 'member' })}
+          >
+            <Ionicons name="settings-outline" size={22} color="#333" />
+          </TouchableOpacity>
+        )}
         <TouchableOpacity style={styles.menuButton}>
           <Ionicons name="ellipsis-vertical" size={22} color="#333" />
         </TouchableOpacity>
@@ -653,6 +661,10 @@ const styles = StyleSheet.create({
   },
   menuButton: {
     padding: 4,
+  },
+  settingsButton: {
+    padding: 4,
+    marginRight: 8,
   },
   content: {
     flex: 1,
