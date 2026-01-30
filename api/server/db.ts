@@ -5762,3 +5762,229 @@ export async function deleteGroupMessage(messageId: number, deletedBy: number): 
     } as any)
     .where(eq(groupMessages.id, messageId));
 }
+
+
+// ============================================
+// TRAININGS - Treinos gerais
+// ============================================
+
+export async function createTraining(training: {
+  groupId: number;
+  createdBy: number;
+  title: string;
+  description?: string;
+  trainingType: string;
+  scheduledAt: Date;
+  durationMinutes?: number;
+  meetingPoint?: string;
+  meetingLat?: number;
+  meetingLng?: number;
+  maxParticipants?: number;
+}): Promise<number> {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  
+  const result = await db.insert(trainings).values(training as any);
+  return result[0].insertId;
+}
+
+export async function getTrainings(filters?: {
+  groupId?: number;
+  status?: string;
+  limit?: number;
+}): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  const limit = filters?.limit || 50;
+  
+  let query = db.select({
+    training: trainings,
+    creator: {
+      id: users.id,
+      name: users.name,
+      avatar: users.avatar,
+    },
+    group: {
+      id: groups.id,
+      name: groups.name,
+      logoUrl: groups.logoUrl,
+    }
+  })
+  .from(trainings)
+  .leftJoin(users, eq(trainings.createdBy, users.id))
+  .leftJoin(groups, eq(trainings.groupId, groups.id))
+  .orderBy(desc(trainings.scheduledAt))
+  .limit(limit);
+  
+  const result = await query;
+  
+  return result.map(r => ({
+    ...r.training,
+    createdBy: r.creator,
+    group: r.group,
+  }));
+}
+
+export async function getTrainingById(trainingId: number): Promise<any | null> {
+  const db = await getDb();
+  if (!db) return null;
+  
+  const result = await db.select({
+    training: trainings,
+    creator: {
+      id: users.id,
+      name: users.name,
+      avatar: users.avatar,
+    },
+    group: {
+      id: groups.id,
+      name: groups.name,
+      logoUrl: groups.logoUrl,
+    }
+  })
+  .from(trainings)
+  .leftJoin(users, eq(trainings.createdBy, users.id))
+  .leftJoin(groups, eq(trainings.groupId, groups.id))
+  .where(eq(trainings.id, trainingId))
+  .limit(1);
+  
+  if (!result[0]) return null;
+  
+  return {
+    ...result[0].training,
+    createdBy: result[0].creator,
+    group: result[0].group,
+  };
+}
+
+export async function getUserTrainings(userId: number): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Get trainings where user is participant or creator
+  const result = await db.select({
+    training: trainings,
+    creator: {
+      id: users.id,
+      name: users.name,
+      avatar: users.avatar,
+    },
+    group: {
+      id: groups.id,
+      name: groups.name,
+      logoUrl: groups.logoUrl,
+    }
+  })
+  .from(trainings)
+  .leftJoin(users, eq(trainings.createdBy, users.id))
+  .leftJoin(groups, eq(trainings.groupId, groups.id))
+  .leftJoin(trainingRsvps, eq(trainings.id, trainingRsvps.trainingId))
+  .where(
+    or(
+      eq(trainings.createdBy, userId),
+      eq(trainingRsvps.userId, userId)
+    )
+  )
+  .orderBy(desc(trainings.scheduledAt))
+  .limit(50);
+  
+  return result.map(r => ({
+    ...r.training,
+    createdBy: r.creator,
+    group: r.group,
+  }));
+}
+
+export async function joinTraining(
+  trainingId: number, 
+  userId: number, 
+  response: 'going' | 'maybe' | 'not_going'
+): Promise<void> {
+  const db = await getDb();
+  if (!db) return;
+  
+  // Check if already has RSVP
+  const existing = await db.select()
+    .from(trainingRsvps)
+    .where(
+      and(
+        eq(trainingRsvps.trainingId, trainingId),
+        eq(trainingRsvps.userId, userId)
+      )
+    );
+  
+  if (existing.length > 0) {
+    await db.update(trainingRsvps)
+      .set({ response })
+      .where(eq(trainingRsvps.id, existing[0].id));
+  } else {
+    await db.insert(trainingRsvps).values({
+      trainingId,
+      userId,
+      response,
+    });
+  }
+  
+  // Update counts
+  const goingCount = await db.select({ count: sql<number>`count(*)` })
+    .from(trainingRsvps)
+    .where(
+      and(
+        eq(trainingRsvps.trainingId, trainingId),
+        eq(trainingRsvps.response, 'going')
+      )
+    );
+  
+  const maybeCount = await db.select({ count: sql<number>`count(*)` })
+    .from(trainingRsvps)
+    .where(
+      and(
+        eq(trainingRsvps.trainingId, trainingId),
+        eq(trainingRsvps.response, 'maybe')
+      )
+    );
+  
+  await db.update(trainings)
+    .set({ 
+      goingCount: goingCount[0]?.count || 0,
+      maybeCount: maybeCount[0]?.count || 0,
+    })
+    .where(eq(trainings.id, trainingId));
+}
+
+export async function getNearbyTrainings(
+  lat: number, 
+  lng: number, 
+  radiusKm: number = 10
+): Promise<any[]> {
+  const db = await getDb();
+  if (!db) return [];
+  
+  // Get all scheduled trainings (simple approach without complex geo queries)
+  const result = await db.select({
+    training: trainings,
+    creator: {
+      id: users.id,
+      name: users.name,
+      avatar: users.avatar,
+    },
+    group: {
+      id: groups.id,
+      name: groups.name,
+      logoUrl: groups.logoUrl,
+    }
+  })
+  .from(trainings)
+  .leftJoin(users, eq(trainings.createdBy, users.id))
+  .leftJoin(groups, eq(trainings.groupId, groups.id))
+  .where(eq(trainings.status, 'scheduled'))
+  .orderBy(desc(trainings.scheduledAt))
+  .limit(50);
+  
+  return result.map(r => ({
+    ...r.training,
+    createdBy: r.creator,
+    group: r.group,
+  }));
+}

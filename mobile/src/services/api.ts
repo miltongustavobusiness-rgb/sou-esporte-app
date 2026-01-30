@@ -2530,9 +2530,84 @@ ApiService.prototype.getUnreadSocialNotificationsCount = async function() {
   }
 };
 
+// ==================== TRAININGS API ====================
+
+ApiService.prototype.getTrainings = async function(filters?: { groupId?: number; status?: string; limit?: number }) {
+  try {
+    return await this.trpcQuery('trainings.list', filters || {});
+  } catch (error) {
+    console.error('Get trainings error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.getTrainingById = async function(trainingId: number) {
+  try {
+    return await this.trpcQuery('trainings.getById', { trainingId });
+  } catch (error) {
+    console.error('Get training by id error:', error);
+    return null;
+  }
+};
+
+ApiService.prototype.getMyTrainings = async function() {
+  try {
+    return await this.trpcQuery('trainings.myTrainings', {});
+  } catch (error) {
+    console.error('Get my trainings error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.getNearbyTrainings = async function(lat: number, lng: number, radiusKm?: number) {
+  try {
+    return await this.trpcQuery('trainings.nearby', { lat, lng, radiusKm });
+  } catch (error) {
+    console.error('Get nearby trainings error:', error);
+    return [];
+  }
+};
+
+ApiService.prototype.createTraining = async function(data: {
+  groupId: number;
+  title: string;
+  description?: string;
+  trainingType: string;
+  scheduledAt: string;
+  durationMinutes?: number;
+  meetingPoint?: string;
+  meetingLat?: number;
+  meetingLng?: number;
+  maxParticipants?: number;
+}) {
+  try {
+    return await this.trpcMutation('trainings.create', data);
+  } catch (error) {
+    console.error('Create training error:', error);
+    return { success: false };
+  }
+};
+
+ApiService.prototype.joinTraining = async function(trainingId: number, response: 'going' | 'maybe' | 'not_going') {
+  try {
+    return await this.trpcMutation('trainings.join', { trainingId, response });
+  } catch (error) {
+    console.error('Join training error:', error);
+    return { success: false };
+  }
+};
+
 // Add to type declarations
 declare module './api' {
   interface ApiService {
+    // Trainings
+    getTrainings(filters?: { groupId?: number; status?: string; limit?: number }): Promise<any[]>;
+    getTrainingById(trainingId: number): Promise<any | null>;
+    getMyTrainings(): Promise<any[]>;
+    getNearbyTrainings(lat: number, lng: number, radiusKm?: number): Promise<any[]>;
+    createTraining(data: { groupId: number; title: string; description?: string; trainingType: string; scheduledAt: string; durationMinutes?: number; meetingPoint?: string; meetingLat?: number; meetingLng?: number; maxParticipants?: number }): Promise<{ id?: number; success: boolean }>;
+    joinTraining(trainingId: number, response: 'going' | 'maybe' | 'not_going'): Promise<{ success: boolean }>;
+    // Existing methods
     getAthleteProfile(userId: number): Promise<{
       profile: {
         id: number;

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -14,11 +14,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import api from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Mock data for trainings
-const MOCK_TRAININGS = [
+// Fallback data for trainings (used when API fails)
+const FALLBACK_TRAININGS = [
   {
     id: '1',
     title: 'Treino de Rodagem',
@@ -112,6 +113,72 @@ export default function DiscoverTrainingsScreen() {
   const [selectedModality, setSelectedModality] = useState('Todas');
   const [selectedLevel, setSelectedLevel] = useState('Todos');
   const [selectedDate, setSelectedDate] = useState('Qualquer');
+  
+  // Real data from API
+  const [trainings, setTrainings] = useState<any[]>(FALLBACK_TRAININGS);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load trainings from API
+  useEffect(() => {
+    const loadTrainings = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await api.getTrainings();
+        if (data && data.length > 0) {
+          // Transform API data to match component format
+          const formattedTrainings = data.map((t: any) => ({
+            id: String(t.id),
+            title: t.title || 'Treino',
+            group: t.groupName || 'Grupo',
+            groupAvatar: '🏃',
+            date: formatDate(t.scheduledAt),
+            time: formatTime(t.scheduledAt),
+            location: t.meetingPoint || 'Local a definir',
+            distance: t.distance || '-',
+            level: t.level || 'Intermediário',
+            participants: t.participantsCount || 0,
+            maxParticipants: t.maxParticipants || 20,
+            type: t.trainingType || 'rodagem',
+            lat: t.meetingLat || -20.2821,
+            lng: t.meetingLng || -40.2892,
+          }));
+          setTrainings(formattedTrainings);
+        } else {
+          // Use fallback if no data
+          setTrainings(FALLBACK_TRAININGS);
+        }
+      } catch (err) {
+        console.error('Error loading trainings:', err);
+        setError('Erro ao carregar treinos');
+        // Use fallback on error
+        setTrainings(FALLBACK_TRAININGS);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadTrainings();
+  }, []);
+
+  // Helper functions for date formatting
+  const formatDate = (dateStr: string) => {
+    if (!dateStr) return 'Em breve';
+    const date = new Date(dateStr);
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Hoje';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Amanhã';
+    return date.toLocaleDateString('pt-BR', { weekday: 'long' });
+  };
+
+  const formatTime = (dateStr: string) => {
+    if (!dateStr) return '--:--';
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  };
 
   const getLevelColor = (level: string) => {
     switch (level) {
@@ -132,13 +199,13 @@ export default function DiscoverTrainingsScreen() {
     }
   };
 
-  const filteredTrainings = MOCK_TRAININGS.filter(training => {
+  const filteredTrainings = trainings.filter(training => {
     if (selectedLevel !== 'Todos' && training.level !== selectedLevel) return false;
     if (selectedDate !== 'Qualquer' && training.date !== selectedDate) return false;
     return true;
   });
 
-  const renderTrainingCard = ({ item }: { item: typeof MOCK_TRAININGS[0] }) => (
+  const renderTrainingCard = ({ item }: { item: typeof trainings[0] }) => (
     <TouchableOpacity 
       style={styles.trainingCard}
       onPress={() => navigation.navigate('TrainingDetail' as any, { trainingId: item.id })}

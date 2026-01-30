@@ -4289,6 +4289,78 @@ export const appRouter = router({
       }),
   }),
 
+  // ==================== TRAININGS ROUTES ====================
+  trainings: router({
+    // List all trainings (with optional filters)
+    list: protectedProcedure
+      .input(z.object({
+        groupId: z.number().optional(),
+        status: z.string().optional(),
+        limit: z.number().optional(),
+      }).optional())
+      .query(async ({ input }) => {
+        return await db.getTrainings(input);
+      }),
+    
+    // Get training by ID
+    getById: protectedProcedure
+      .input(z.object({ trainingId: z.number() }))
+      .query(async ({ input }) => {
+        return await db.getTrainingById(input.trainingId);
+      }),
+    
+    // Get user's trainings (created or joined)
+    myTrainings: protectedProcedure
+      .query(async ({ ctx }) => {
+        return await db.getUserTrainings(ctx.user.id);
+      }),
+    
+    // Get nearby trainings
+    nearby: protectedProcedure
+      .input(z.object({
+        lat: z.number(),
+        lng: z.number(),
+        radiusKm: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        return await db.getNearbyTrainings(input.lat, input.lng, input.radiusKm);
+      }),
+    
+    // Create a new training
+    create: protectedProcedure
+      .input(z.object({
+        groupId: z.number(),
+        title: z.string(),
+        description: z.string().optional(),
+        trainingType: z.string(),
+        scheduledAt: z.string(), // ISO date string
+        durationMinutes: z.number().optional(),
+        meetingPoint: z.string().optional(),
+        meetingLat: z.number().optional(),
+        meetingLng: z.number().optional(),
+        maxParticipants: z.number().optional(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const trainingId = await db.createTraining({
+          ...input,
+          scheduledAt: new Date(input.scheduledAt),
+          createdBy: ctx.user.id,
+        });
+        return { id: trainingId, success: true };
+      }),
+    
+    // Join a training
+    join: protectedProcedure
+      .input(z.object({
+        trainingId: z.number(),
+        response: z.enum(['going', 'maybe', 'not_going']),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        await db.joinTraining(input.trainingId, ctx.user.id, input.response);
+        return { success: true };
+      }),
+  }),
+
   // ==================== MOBILE MODERATION ENDPOINTS ====================
   // Endpoints públicos para moderação via link de e-mail
   mobileModeration: router({
