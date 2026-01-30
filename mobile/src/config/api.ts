@@ -343,17 +343,3 @@ export async function createFightTraining(data: {
 }): Promise<any> {
   return trpcCall('mobile.groups.createFightTraining', data);
 }
-
-// Alias para compatibilidade com código legado que usa apiRequest
-// apiRequest é um wrapper para trpcCall que aceita procedure e input
-export async function apiRequest<T = any>(
-  procedure: string,
-  input: Record<string, unknown> = {}
-): Promise<T> {
-  // Determina se é query ou mutation baseado no nome do procedure
-  const isQuery = procedure.includes('.get') || 
-                  procedure.includes('.list') || 
-                  procedure.includes('.search') ||
-                  procedure.includes('.check');
-  return trpcCall<T>(procedure, input, isQuery ? 'query' : 'mutation');
-}
