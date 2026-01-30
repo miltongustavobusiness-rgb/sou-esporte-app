@@ -18,26 +18,31 @@ export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
     // Map our types to react-native-toast-message types
     let toastType: 'success' | 'error' | 'info' = 'info';
+    let title = '';
     
     switch (type) {
       case 'success':
         toastType = 'success';
+        title = 'Sucesso';
         break;
       case 'error':
         toastType = 'error';
+        title = 'Erro';
         break;
       case 'warning':
         toastType = 'error'; // Use error style for warning
+        title = '⚠️ Aviso';
         break;
       case 'info':
       default:
         toastType = 'info';
+        title = 'Info';
         break;
     }
 
     Toast.show({
       type: toastType,
-      text1: type === 'warning' ? '⚠️ Aviso' : undefined,
+      text1: title,
       text2: message,
       position: 'top',
       visibilityTime: 3000,
