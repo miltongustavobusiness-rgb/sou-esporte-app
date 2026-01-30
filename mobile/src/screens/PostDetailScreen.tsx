@@ -20,6 +20,7 @@ import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import api from '../services/api';
 import { useVideoPlayer, VideoView } from 'expo-video';
+import { toBool } from '../utils/bool';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
@@ -144,7 +145,7 @@ export default function PostDetailScreen({ navigation, route }: PostDetailScreen
   useEffect(() => {
     // Update player muted state
     if (player) {
-      player.muted = isMuted;
+      player.muted = toBool(isMuted);
     }
   }, [isMuted, player]);
 

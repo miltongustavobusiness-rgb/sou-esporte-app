@@ -18,6 +18,7 @@ import { COLORS } from '../constants/theme';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { useToast } from '../contexts/ToastContext';
 import api from '../services/api';
+import { toBool } from '../utils/bool';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -121,7 +122,7 @@ export default function VideoPlayerScreen({ navigation, route }: VideoPlayerScre
   // Atualizar mute state
   useEffect(() => {
     if (player) {
-      player.muted = isMuted;
+      player.muted = toBool(isMuted);
     }
   }, [isMuted, player]);
 

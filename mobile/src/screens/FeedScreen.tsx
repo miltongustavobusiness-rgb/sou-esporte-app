@@ -47,6 +47,7 @@ import LikesModal from '../components/LikesModal';
 import api from '../services/api';
 import GridItem from '../components/GridItem';
 import LinkifiedText from '../components/LinkifiedText';
+import { toBool } from '../utils/bool';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -189,7 +190,7 @@ const InlineVideoPlayer = ({
       
       // SYNCHRONOUS API - No race conditions!
       // Apply muted state
-      player.muted = !shouldHaveAudio;
+      player.muted = !toBool(shouldHaveAudio);
       
       // Apply volume - IMPORTANT: volume is separate from muted
       // Even if muted=false, volume=0 means no sound
@@ -254,7 +255,7 @@ const InlineVideoPlayer = ({
     // The controller will handle the state, but we want instant feedback
     if (player && isActive) {
       console.log(`[InlineVideoPlayer] ${playerId} - Applying audio directly: muted=${!newAudioState}, volume=${newAudioState ? 1 : 0}`);
-      player.muted = !newAudioState;
+      player.muted = !toBool(newAudioState);
       player.volume = newAudioState ? 1 : 0;
       
       // Force play if not playing

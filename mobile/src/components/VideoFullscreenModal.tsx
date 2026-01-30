@@ -14,6 +14,7 @@ import { useVideoPlayer, VideoView, VideoPlayer } from 'expo-video';
 import { useEvent } from 'expo';
 import { Ionicons } from '@expo/vector-icons';
 import { FeedAudioController } from '../utils/FeedAudioController';
+import { toBool } from '../utils/bool';
 
 interface VideoItem {
   id: number;
@@ -86,7 +87,7 @@ const FullscreenVideoItem = React.memo(({
       console.log(`[FullscreenVideoItem] ${playerId} - isCurrentVideo: ${isCurrentVideo}, shouldHaveAudio: ${shouldHaveAudio}`);
       
       // SYNCHRONOUS API - No race conditions!
-      player.muted = !shouldHaveAudio;
+      player.muted = !toBool(shouldHaveAudio);
       player.volume = shouldHaveAudio ? 1 : 0;
       
       if (isCurrentVideo) {
