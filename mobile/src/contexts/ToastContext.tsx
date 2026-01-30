@@ -20,28 +20,30 @@ interface ToastState {
 
 export const ToastProvider: React.FC<ToastProviderProps> = ({ children }) => {
   const [toast, setToast] = useState<ToastState>({
-    visible: false,
+    visible: false as boolean,
     message: '',
     type: 'info',
   });
 
   const showToast = useCallback((message: string, type: ToastType = 'info') => {
+    // Ensure strict boolean typing for Fabric compatibility
     setToast({
-      visible: true,
-      message,
-      type,
+      visible: true as boolean,
+      message: String(message || ''),
+      type: type || 'info',
     });
   }, []);
 
   const hideToast = useCallback(() => {
-    setToast(prev => ({ ...prev, visible: false }));
+    // Ensure strict boolean typing for Fabric compatibility
+    setToast(prev => ({ ...prev, visible: false as boolean }));
   }, []);
 
   return (
     <ToastContext.Provider value={{ showToast }}>
       {children}
       <Toast
-        visible={toast.visible}
+        visible={Boolean(toast.visible)}
         message={toast.message}
         type={toast.type}
         onHide={hideToast}

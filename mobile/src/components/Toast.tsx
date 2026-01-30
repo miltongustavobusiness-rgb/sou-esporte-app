@@ -22,9 +22,12 @@ const Toast: React.FC<ToastProps> = ({
 }) => {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(-100)).current;
+  
+  // Ensure visible is strictly boolean (Fabric compatibility)
+  const isVisible = Boolean(visible);
 
   useEffect(() => {
-    if (visible) {
+    if (isVisible) {
       Animated.parallel([
         Animated.timing(fadeAnim, {
           toValue: 1,
@@ -44,7 +47,7 @@ const Toast: React.FC<ToastProps> = ({
 
       return () => clearTimeout(timer);
     }
-  }, [visible]);
+  }, [isVisible]);
 
   const hideToast = () => {
     Animated.parallel([
@@ -63,7 +66,7 @@ const Toast: React.FC<ToastProps> = ({
     });
   };
 
-  if (!visible) return null;
+  if (!isVisible) return null;
 
   const getBackgroundColor = (): string => {
     switch (type) {
