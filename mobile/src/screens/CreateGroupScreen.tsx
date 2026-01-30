@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
 import { RootStackParamList } from '../types';
+import api from '../services/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -224,45 +225,54 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
-      // Simular criação do grupo (integrar com API depois)
-      const novoGrupo = {
-        id: Date.now().toString(),
-        nome,
-        modalidade,
-        distancias: distanciasSelecionadas,
-        cidade,
-        bairro,
-        visibilidade,
-        fotoCapa,
-        regras,
-        permitirTreinosPublicos,
-        aprovarMembrosManualmente,
-        membros: 1,
-        isAdmin: true,
-        // Novos campos
-        tipoGrupo,
-        valorMensalidade: tipoGrupo === 'pago' ? parseInt(valorMensalidade) / 100 : 0,
-        periodoCobranca: tipoGrupo === 'pago' ? periodoCobranca : null,
-        instrutor: tipoGrupo === 'pago' ? {
-          nome: nomeInstrutor,
-          especialidade: especialidadeInstrutor,
-          descricao: descricaoInstrutor,
-          foto: fotoInstrutor,
-        } : null,
-        beneficiosComunidade: tipoGrupo === 'pago' ? beneficiosComunidade : null,
+      // Mapear modalidade para groupType da API
+      const groupTypeMap: Record<string, 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other'> = {
+        'corrida': 'running',
+        'bike': 'cycling',
+        'triathlon': 'triathlon',
+        'caminhada_trail': 'trail',
+        'natacao': 'swimming',
+        'funcional': 'fitness',
+        'yoga': 'fitness',
+        'lutas': 'fitness',
+        'outro': 'other',
       };
 
-      console.log('Novo grupo criado:', novoGrupo);
-
-      // Navegar para o detalhe do grupo como admin
-      navigation.navigate('GroupDetail', { 
-        groupId: novoGrupo.id,
-        groupName: novoGrupo.nome,
-        isAdmin: true,
+      // Chamar API para criar grupo
+      const result = await api.createGroup({
+        name: nome.trim(),
+        description: regras || undefined,
+        privacy: visibilidade === 'privado' ? 'private' : 'public',
+        groupType: groupTypeMap[modalidade] || 'other',
+        city: cidade.trim(),
+        state: bairro.trim(), // Usando bairro como state por enquanto
+        requiresApproval: aprovarMembrosManualmente,
       });
+
+      if (result.success && result.groupId) {
+        console.log('Grupo criado com sucesso! ID:', result.groupId);
+        
+        Alert.alert('Sucesso', 'Grupo criado com sucesso!', [
+          {
+            text: 'Ver Grupo',
+            onPress: () => navigation.navigate('GroupDetail', { 
+              groupId: result.groupId!,
+              groupName: nome.trim(),
+              isAdmin: true,
+            }),
+          },
+          {
+            text: 'Voltar',
+            onPress: () => navigation.navigate('MyGroups'),
+          },
+        ]);
+      } else {
+        Alert.alert('Erro', 'Não foi possível criar o grupo. Tente novamente.');
+      }
       
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível criar o grupo. Tente novamente.');
+    } catch (error: any) {
+      console.error('Erro ao criar grupo:', error);
+      Alert.alert('Erro', error.message || 'Não foi possível criar o grupo. Tente novamente.');
     }
     
     setLoading(false);
