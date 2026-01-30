@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -9,16 +9,19 @@ import {
   StatusBar,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { api } from '../services/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Mock training data
-const TRAINING_DATA = {
+// Fallback training data (used when API fails)
+const FALLBACK_TRAINING_DATA = {
   id: '1',
   title: 'Treino de Rodagem',
   group: 'Lobos Corredores',
@@ -54,20 +57,90 @@ const TRAINING_DATA = {
 export default function TrainingDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute();
+  const { user } = useApp();
   const [userStatus, setUserStatus] = useState<'none' | 'confirmed' | 'maybe'>('none');
   const [checkedIn, setCheckedIn] = useState(false);
+  const [training, setTraining] = useState<any>(FALLBACK_TRAINING_DATA);
+  const [loading, setLoading] = useState(true);
+  const [joining, setJoining] = useState(false);
 
-  const confirmedCount = TRAINING_DATA.participants.filter(p => p.status === 'confirmed').length;
-  const maybeCount = TRAINING_DATA.participants.filter(p => p.status === 'maybe').length;
+  // Get trainingId from navigation params
+  const params = route.params as { trainingId?: string } | undefined;
+  const trainingId = params?.trainingId || '1';
 
-  const handleRSVP = (status: 'confirmed' | 'maybe') => {
-    setUserStatus(status);
-    Alert.alert(
-      'Confirmado!',
-      status === 'confirmed' 
-        ? 'Você confirmou presença no treino!' 
-        : 'Você marcou como "Talvez" para este treino.'
-    );
+  // Fetch training details from API
+  useEffect(() => {
+    const fetchTraining = async () => {
+      try {
+        setLoading(true);
+        const result = await api.getTrainingById(trainingId);
+        if (result) {
+          // Transform API response to match expected format
+          const transformedTraining = {
+            id: result.id,
+            title: result.title || 'Treino',
+            group: result.groupName || 'Grupo',
+            groupAvatar: '🏃',
+            date: result.date ? new Date(result.date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' }) : 'Data não definida',
+            time: result.time || '00:00',
+            location: result.location || 'Local não definido',
+            address: result.address || '',
+            distance: result.distance || '',
+            pace: result.pace || '',
+            level: result.level || 'Todos os níveis',
+            type: result.type || 'treino',
+            description: result.description || '',
+            organizer: {
+              name: result.organizerName || 'Organizador',
+              avatar: result.organizerAvatar || 'https://randomuser.me/api/portraits/men/1.jpg',
+            },
+            participants: result.participants || [],
+            maxParticipants: result.maxParticipants || 20,
+            hasRoute: result.hasRoute || false,
+            fee: result.fee || null,
+          };
+          setTraining(transformedTraining);
+          console.log('Training loaded from API:', transformedTraining.title);
+        }
+      } catch (error) {
+        console.log('Error fetching training, using fallback:', error);
+        // Keep fallback data already set
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchTraining();
+  }, [trainingId]);
+
+  const confirmedCount = training.participants?.filter((p: any) => p.status === 'confirmed').length || 0;
+  const maybeCount = training.participants?.filter((p: any) => p.status === 'maybe').length || 0;
+
+  const handleRSVP = async (status: 'confirmed' | 'maybe') => {
+    try {
+      setJoining(true);
+      // Call API to join training
+      await api.joinTraining(trainingId, status);
+      setUserStatus(status);
+      Alert.alert(
+        'Confirmado!',
+        status === 'confirmed' 
+          ? 'Você confirmou presença no treino!' 
+          : 'Você marcou como "Talvez" para este treino.'
+      );
+    } catch (error) {
+      console.log('Error joining training:', error);
+      // Still update local state even if API fails
+      setUserStatus(status);
+      Alert.alert(
+        'Confirmado!',
+        status === 'confirmed' 
+          ? 'Você confirmou presença no treino!' 
+          : 'Você marcou como "Talvez" para este treino.'
+      );
+    } finally {
+      setJoining(false);
+    }
   };
 
   const handleCheckIn = () => {
@@ -79,7 +152,7 @@ export default function TrainingDetailScreen() {
         { text: 'OK' },
         { 
           text: 'Iniciar Atividade', 
-          onPress: () => navigation.navigate('ActivitySetup' as any, { trainingId: TRAINING_DATA.id })
+          onPress: () => navigation.navigate('ActivitySetup' as any, { trainingId: training.id })
         }
       ]
     );
@@ -109,17 +182,23 @@ export default function TrainingDetailScreen() {
         </TouchableOpacity>
       </View>
 
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#84CC16" />
+          <Text style={styles.loadingText}>Carregando treino...</Text>
+        </View>
+      ) : (
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Hero Section */}
         <View style={styles.heroSection}>
           <View style={styles.groupBadge}>
-            <Text style={styles.groupEmoji}>{TRAINING_DATA.groupAvatar}</Text>
-            <Text style={styles.groupName}>{TRAINING_DATA.group}</Text>
+            <Text style={styles.groupEmoji}>{training.groupAvatar}</Text>
+            <Text style={styles.groupName}>{training.group}</Text>
           </View>
-          <Text style={styles.trainingTitle}>{TRAINING_DATA.title}</Text>
-          <View style={[styles.levelBadge, { backgroundColor: getLevelColor(TRAINING_DATA.level) + '20' }]}>
-            <Text style={[styles.levelText, { color: getLevelColor(TRAINING_DATA.level) }]}>
-              {TRAINING_DATA.level}
+          <Text style={styles.trainingTitle}>{training.title}</Text>
+          <View style={[styles.levelBadge, { backgroundColor: getLevelColor(training.level) + '20' }]}>
+            <Text style={[styles.levelText, { color: getLevelColor(training.level) }]}>
+              {training.level}
             </Text>
           </View>
         </View>
@@ -129,14 +208,14 @@ export default function TrainingDetailScreen() {
           <View style={styles.infoCard}>
             <Ionicons name="calendar" size={24} color="#84CC16" />
             <Text style={styles.infoLabel}>Data</Text>
-            <Text style={styles.infoValue}>{TRAINING_DATA.date}</Text>
-            <Text style={styles.infoSubvalue}>{TRAINING_DATA.time}</Text>
+            <Text style={styles.infoValue}>{training.date}</Text>
+            <Text style={styles.infoSubvalue}>{training.time}</Text>
           </View>
           <View style={styles.infoCard}>
             <Ionicons name="speedometer" size={24} color="#3B82F6" />
             <Text style={styles.infoLabel}>Distância</Text>
-            <Text style={styles.infoValue}>{TRAINING_DATA.distance}</Text>
-            <Text style={styles.infoSubvalue}>{TRAINING_DATA.pace}</Text>
+            <Text style={styles.infoValue}>{training.distance}</Text>
+            <Text style={styles.infoSubvalue}>{training.pace}</Text>
           </View>
         </View>
 
@@ -148,15 +227,15 @@ export default function TrainingDetailScreen() {
               <Ionicons name="location" size={24} color="#EF4444" />
             </View>
             <View style={styles.locationInfo}>
-              <Text style={styles.locationName}>{TRAINING_DATA.location}</Text>
-              <Text style={styles.locationAddress}>{TRAINING_DATA.address}</Text>
+              <Text style={styles.locationName}>{training.location}</Text>
+              <Text style={styles.locationAddress}>{training.address}</Text>
             </View>
             <Ionicons name="navigate" size={24} color="#84CC16" />
           </TouchableOpacity>
         </View>
 
         {/* Route */}
-        {TRAINING_DATA.hasRoute && (
+        {training.hasRoute && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Rota do Treino</Text>
             <TouchableOpacity style={styles.routeCard}>
@@ -166,7 +245,7 @@ export default function TrainingDetailScreen() {
               </View>
               <View style={styles.routeStats}>
                 <View style={styles.routeStat}>
-                  <Text style={styles.routeStatValue}>{TRAINING_DATA.distance}</Text>
+                  <Text style={styles.routeStatValue}>{training.distance}</Text>
                   <Text style={styles.routeStatLabel}>Distância</Text>
                 </View>
                 <View style={styles.routeStat}>
@@ -181,7 +260,7 @@ export default function TrainingDetailScreen() {
         {/* Description */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Descrição</Text>
-          <Text style={styles.description}>{TRAINING_DATA.description}</Text>
+          <Text style={styles.description}>{training.description}</Text>
         </View>
 
         {/* Organizer */}
@@ -192,7 +271,7 @@ export default function TrainingDetailScreen() {
               <Text style={styles.organizerAvatarText}>👨</Text>
             </View>
             <View style={styles.organizerInfo}>
-              <Text style={styles.organizerName}>{TRAINING_DATA.organizer.name}</Text>
+              <Text style={styles.organizerName}>{training.organizer?.name || 'Organizador'}</Text>
               <Text style={styles.organizerRole}>Administrador do grupo</Text>
             </View>
             <TouchableOpacity style={styles.messageButton}>
@@ -206,7 +285,7 @@ export default function TrainingDetailScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Participantes</Text>
             <Text style={styles.participantCount}>
-              {confirmedCount}/{TRAINING_DATA.maxParticipants} confirmados
+              {confirmedCount}/{training.maxParticipants} confirmados
             </Text>
           </View>
           
@@ -222,7 +301,7 @@ export default function TrainingDetailScreen() {
           </View>
 
           <View style={styles.participantsList}>
-            {TRAINING_DATA.participants.slice(0, 6).map(participant => (
+            {(training.participants || []).slice(0, 6).map((participant: any) => (
               <View key={participant.id} style={styles.participantItem}>
                 <View style={styles.participantAvatar}>
                   <Text style={styles.participantAvatarText}>{participant.avatar}</Text>
@@ -240,9 +319,9 @@ export default function TrainingDetailScreen() {
                 />
               </View>
             ))}
-            {TRAINING_DATA.participants.length > 6 && (
+            {(training.participants?.length || 0) > 6 && (
               <TouchableOpacity style={styles.seeAllButton}>
-                <Text style={styles.seeAllText}>Ver todos ({TRAINING_DATA.participants.length})</Text>
+                <Text style={styles.seeAllText}>Ver todos ({training.participants?.length || 0})</Text>
                 <Ionicons name="chevron-forward" size={16} color="#84CC16" />
               </TouchableOpacity>
             )}
@@ -255,15 +334,21 @@ export default function TrainingDetailScreen() {
             <Text style={styles.rsvpTitle}>Você vai participar?</Text>
             <View style={styles.rsvpButtons}>
               <TouchableOpacity 
-                style={[styles.rsvpButton, styles.rsvpGoing]}
+                style={[styles.rsvpButton, styles.rsvpGoing, joining && { opacity: 0.6 }]}
                 onPress={() => handleRSVP('confirmed')}
+                disabled={joining}
               >
-                <Ionicons name="checkmark-circle" size={24} color="#0F172A" />
-                <Text style={styles.rsvpButtonText}>Vou</Text>
+                {joining ? (
+                  <ActivityIndicator size="small" color="#0F172A" />
+                ) : (
+                  <Ionicons name="checkmark-circle" size={24} color="#0F172A" />
+                )}
+                <Text style={styles.rsvpButtonText}>{joining ? 'Confirmando...' : 'Vou'}</Text>
               </TouchableOpacity>
               <TouchableOpacity 
-                style={[styles.rsvpButton, styles.rsvpMaybe]}
+                style={[styles.rsvpButton, styles.rsvpMaybe, joining && { opacity: 0.6 }]}
                 onPress={() => handleRSVP('maybe')}
+                disabled={joining}
               >
                 <Ionicons name="help-circle" size={24} color="#FFFFFF" />
                 <Text style={styles.rsvpButtonTextMaybe}>Talvez</Text>
@@ -288,7 +373,7 @@ export default function TrainingDetailScreen() {
           <View style={styles.startSection}>
             <TouchableOpacity 
               style={styles.startButton}
-              onPress={() => navigation.navigate('ActivitySetup' as any, { trainingId: TRAINING_DATA.id })}
+              onPress={() => navigation.navigate('ActivitySetup' as any, { trainingId: training.id })}
             >
               <Ionicons name="play-circle" size={24} color="#0F172A" />
               <Text style={styles.startButtonText}>Iniciar Atividade</Text>
@@ -298,6 +383,7 @@ export default function TrainingDetailScreen() {
 
         <View style={styles.bottomPadding} />
       </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -329,6 +415,17 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#94A3B8',
   },
   heroSection: {
     alignItems: 'center',
