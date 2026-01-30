@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,11 +7,14 @@ import {
   SafeAreaView,
   ScrollView,
   StatusBar,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { api } from '../services/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -36,8 +39,68 @@ const TrainCard: React.FC<TrainCardProps> = ({ icon, title, description, color, 
   </TouchableOpacity>
 );
 
+// Fallback data for recent trainings
+const FALLBACK_RECENT_TRAININGS = [
+  {
+    id: '1',
+    title: 'Corrida matinal',
+    date: 'Hoje às 06:30',
+    distance: '8.2km',
+    duration: '42min',
+    type: 'individual',
+    icon: 'walk' as const,
+    color: '#84CC16',
+  },
+  {
+    id: '2',
+    title: 'Treino com Lobos Corredores',
+    date: 'Ontem às 18:00',
+    distance: '10km',
+    duration: '52min',
+    type: 'group',
+    icon: 'people' as const,
+    color: '#3B82F6',
+  },
+];
+
 export default function TrainHubScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useApp();
+  const [recentTrainings, setRecentTrainings] = useState<any[]>(FALLBACK_RECENT_TRAININGS);
+  const [stats, setStats] = useState({ trainingsThisMonth: 12, totalDistance: '87km', avgPace: '5:32' });
+  const [loading, setLoading] = useState(true);
+
+  // Fetch user's recent trainings from API
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const myTrainings = await api.getMyTrainings();
+        if (myTrainings && myTrainings.length > 0) {
+          // Transform API response to match expected format
+          const transformed = myTrainings.slice(0, 5).map((t: any) => ({
+            id: t.id,
+            title: t.title || 'Treino',
+            date: t.scheduledAt ? new Date(t.scheduledAt).toLocaleDateString('pt-BR', { weekday: 'short', hour: '2-digit', minute: '2-digit' }) : 'Data não definida',
+            distance: t.distance || '',
+            duration: t.duration || '',
+            type: t.groupId ? 'group' : 'individual',
+            icon: t.groupId ? 'people' : 'walk',
+            color: t.groupId ? '#3B82F6' : '#84CC16',
+          }));
+          setRecentTrainings(transformed);
+          console.log('Recent trainings loaded from API:', transformed.length);
+        }
+      } catch (error) {
+        console.log('Error fetching trainings, using fallback:', error);
+        // Keep fallback data
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -96,15 +159,15 @@ export default function TrainHubScreen() {
           <Text style={styles.sectionTitle}>Suas estatísticas</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>12</Text>
+              <Text style={styles.statValue}>{stats.trainingsThisMonth}</Text>
               <Text style={styles.statLabel}>Treinos este mês</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>87km</Text>
+              <Text style={styles.statValue}>{stats.totalDistance}</Text>
               <Text style={styles.statLabel}>Distância total</Text>
             </View>
             <View style={styles.statCard}>
-              <Text style={styles.statValue}>5:32</Text>
+              <Text style={styles.statValue}>{stats.avgPace}</Text>
               <Text style={styles.statLabel}>Ritmo médio</Text>
             </View>
           </View>
@@ -113,24 +176,36 @@ export default function TrainHubScreen() {
         {/* Recent Trainings */}
         <View style={styles.recentSection}>
           <Text style={styles.sectionTitle}>Treinos recentes</Text>
-          <View style={styles.recentCard}>
-            <View style={styles.recentIconContainer}>
-              <Ionicons name="walk" size={24} color="#84CC16" />
+          {loading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#84CC16" />
+              <Text style={styles.loadingText}>Carregando...</Text>
             </View>
-            <View style={styles.recentContent}>
-              <Text style={styles.recentTitle}>Corrida matinal</Text>
-              <Text style={styles.recentSubtitle}>Hoje às 06:30 • 8.2km • 42min</Text>
+          ) : recentTrainings.length > 0 ? (
+            recentTrainings.map((training) => (
+              <TouchableOpacity 
+                key={training.id} 
+                style={styles.recentCard}
+                onPress={() => navigation.navigate('TrainingDetail' as any, { trainingId: training.id })}
+              >
+                <View style={[styles.recentIconContainer, { backgroundColor: `${training.color}20` }]}>
+                  <Ionicons name={training.icon as any} size={24} color={training.color} />
+                </View>
+                <View style={styles.recentContent}>
+                  <Text style={styles.recentTitle}>{training.title}</Text>
+                  <Text style={styles.recentSubtitle}>
+                    {training.date}{training.distance ? ` • ${training.distance}` : ''}{training.duration ? ` • ${training.duration}` : ''}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="fitness-outline" size={48} color="#64748B" />
+              <Text style={styles.emptyText}>Nenhum treino recente</Text>
+              <Text style={styles.emptySubtext}>Comece um treino para ver seu histórico aqui</Text>
             </View>
-          </View>
-          <View style={styles.recentCard}>
-            <View style={styles.recentIconContainer}>
-              <Ionicons name="people" size={24} color="#3B82F6" />
-            </View>
-            <View style={styles.recentContent}>
-              <Text style={styles.recentTitle}>Treino com Lobos Corredores</Text>
-              <Text style={styles.recentSubtitle}>Ontem às 18:00 • 10km • 52min</Text>
-            </View>
-          </View>
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -291,5 +366,32 @@ const styles = StyleSheet.create({
   recentSubtitle: {
     fontSize: 13,
     color: '#94A3B8',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+  },
+  loadingText: {
+    marginLeft: 8,
+    fontSize: 14,
+    color: '#94A3B8',
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 32,
+  },
+  emptyText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  emptySubtext: {
+    marginTop: 4,
+    fontSize: 14,
+    color: '#475569',
+    textAlign: 'center',
   },
 });
