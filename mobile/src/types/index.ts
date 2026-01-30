@@ -20,6 +20,7 @@ export type RootStackParamList = {
   Groups: undefined;
   MyGroups: undefined;
   CreateGroup: undefined;
+  EditGroup: { groupId: number; groupName: string };
   GroupDetail: { groupId: number; groupName: string; isAdmin?: boolean };
   InviteMembers: { groupId: number; groupName: string };
   CreateTraining: { groupId?: number } | undefined;

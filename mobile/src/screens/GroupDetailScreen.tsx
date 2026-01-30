@@ -471,7 +471,7 @@ export default function GroupDetailScreen() {
         {canManage && (
           <TouchableOpacity 
             style={styles.settingsButton}
-            onPress={() => navigation.navigate('ManageMembers', { groupId, groupName: group?.name || groupName, userRole: membership?.role || 'member' })}
+            onPress={() => navigation.navigate('EditGroup', { groupId, groupName: group?.name || groupName })}
           >
             <Ionicons name="settings-outline" size={22} color="#333" />
           </TouchableOpacity>
