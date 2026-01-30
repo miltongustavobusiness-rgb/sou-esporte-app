@@ -943,38 +943,22 @@ export const appRouter = router({
         const otpCode = resetToken?.code || code;
         
         // Send OTP email
-        console.log('[OTP] Attempting to send email to:', input.email);
-        console.log('[OTP] Code to send:', otpCode);
-        
         try {
           const { sendOTPEmail } = await import('./_core/email');
           const emailSent = await sendOTPEmail(input.email, otpCode);
           
           if (!emailSent) {
-            console.error('[OTP] sendOTPEmail returned false for:', input.email);
-            // Log the code to console so user can still login during development
-            console.log('\n========================================');
-            console.log('[OTP] FALLBACK - Use este código:');
-            console.log(`[OTP] Email: ${input.email}`);
-            console.log(`[OTP] CÓDIGO: ${otpCode}`);
-            console.log('========================================\n');
-            // Still return success so user can login with the code from console
-            return { success: true, message: 'Código gerado! Verifique o console da API.' };
+            console.error('[OTP] Failed to send email to:', input.email);
+            throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Falha ao enviar código. Tente novamente.' });
           }
           
           console.log('[OTP] Email sent successfully to:', input.email);
-          return { success: true, message: 'Código enviado para seu e-mail.' };
-        } catch (error: any) {
-          console.error('[OTP] Error sending email:', error?.message || error);
-          // Log the code to console so user can still login during development
-          console.log('\n========================================');
-          console.log('[OTP] FALLBACK - Use este código:');
-          console.log(`[OTP] Email: ${input.email}`);
-          console.log(`[OTP] CÓDIGO: ${otpCode}`);
-          console.log('========================================\n');
-          // Still return success so user can login with the code from console
-          return { success: true, message: 'Código gerado! Verifique o console da API.' };
+        } catch (error) {
+          console.error('[OTP] Error sending email:', error);
+          throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message: 'Falha ao enviar código. Tente novamente.' });
         }
+        
+        return { success: true, message: 'Código enviado para seu e-mail.' };
       }),
     
     // Verify OTP code and login (for mobile app)
