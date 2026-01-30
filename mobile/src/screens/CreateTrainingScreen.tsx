@@ -10,11 +10,14 @@ import {
   TextInput,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { api } from '../services/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -33,8 +36,10 @@ const TRAINING_TYPES = [
 
 export default function CreateTrainingScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { user } = useApp();
   
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -48,14 +53,66 @@ export default function CreateTrainingScreen() {
   const [hasFee, setHasFee] = useState(false);
   const [hasLimit, setHasLimit] = useState(false);
 
-  const handleCreateTraining = () => {
+  const handleCreateTraining = async () => {
     if (!selectedGroup || !selectedType || !date || !time || !location) {
       Alert.alert('Campos obrigatórios', 'Preencha todos os campos obrigatórios');
       return;
     }
 
-    // Navigate to training detail after creation
-    navigation.navigate('TrainingDetail' as any, { trainingId: 'new' });
+    try {
+      setCreating(true);
+
+      // Parse date (DD/MM/YYYY) and time (HH:MM) to ISO format
+      const [day, month, year] = date.split('/');
+      const scheduledAt = `${year}-${month}-${day}T${time}:00`;
+
+      // Build title from type
+      const typeLabel = TRAINING_TYPES.find(t => t.id === selectedType)?.label || 'Treino';
+      const title = `${typeLabel} - ${location}`;
+
+      const result = await api.createTraining({
+        groupId: parseInt(selectedGroup),
+        title,
+        description: description || undefined,
+        trainingType: selectedType,
+        scheduledAt,
+        meetingPoint: location,
+        maxParticipants: hasLimit && maxParticipants ? parseInt(maxParticipants) : undefined,
+      });
+
+      if (result && result.id) {
+        Alert.alert(
+          'Treino Criado!',
+          'Seu treino foi criado com sucesso.',
+          [
+            {
+              text: 'Ver Treino',
+              onPress: () => navigation.navigate('TrainingDetail' as any, { trainingId: result.id.toString() })
+            },
+            {
+              text: 'OK',
+              onPress: () => navigation.goBack()
+            }
+          ]
+        );
+      } else {
+        // Fallback: show success but go back
+        Alert.alert(
+          'Treino Criado!',
+          'Seu treino foi criado com sucesso.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      }
+    } catch (error) {
+      console.log('Error creating training:', error);
+      Alert.alert(
+        'Erro',
+        'Não foi possível criar o treino. Tente novamente.',
+        [{ text: 'OK' }]
+      );
+    } finally {
+      setCreating(false);
+    }
   };
 
   return (
@@ -314,9 +371,17 @@ export default function CreateTrainingScreen() {
         </View>
 
         {/* Create Button */}
-        <TouchableOpacity style={styles.createButton} onPress={handleCreateTraining}>
-          <Ionicons name="checkmark-circle" size={24} color="#0F172A" />
-          <Text style={styles.createButtonText}>Criar Treino</Text>
+        <TouchableOpacity 
+          style={[styles.createButton, creating && { opacity: 0.6 }]} 
+          onPress={handleCreateTraining}
+          disabled={creating}
+        >
+          {creating ? (
+            <ActivityIndicator size="small" color="#0F172A" />
+          ) : (
+            <Ionicons name="checkmark-circle" size={24} color="#0F172A" />
+          )}
+          <Text style={styles.createButtonText}>{creating ? 'Criando...' : 'Criar Treino'}</Text>
         </TouchableOpacity>
 
         <View style={styles.bottomPadding} />
