@@ -326,6 +326,21 @@ export async function createYogaSession(data: {
   return trpcCall('mobile.groups.createYogaSession', data);
 }
 
+// =============================================
+// Generic API Request Function (for backward compatibility)
+// =============================================
+
+// Função genérica para chamadas à API (usada por várias telas)
+export async function apiRequest<T = any>(
+  procedure: string,
+  input: Record<string, unknown> = {},
+  method: 'query' | 'mutation' = 'mutation'
+): Promise<T> {
+  // Se o procedure não começar com 'mobile.', adiciona o prefixo
+  const fullProcedure = procedure.startsWith('mobile.') ? procedure : `mobile.${procedure}`;
+  return trpcCall<T>(fullProcedure, input, method);
+}
+
 // Criar treino de lutas
 export async function createFightTraining(data: {
   groupId: number;
