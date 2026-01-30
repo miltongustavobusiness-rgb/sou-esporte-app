@@ -85,6 +85,7 @@ import EditGridBioScreen from './src/screens/EditGridBioScreen';
 import AccountRecoveryScreen from './src/screens/AccountRecoveryScreen';
 import EmailVerificationScreen from './src/screens/EmailVerificationScreen';
 // V12.10 - Groups Expanded
+import MyGroupsScreen from './src/screens/MyGroupsScreen';
 import ManageMembersScreen from './src/screens/ManageMembersScreen';
 import GroupRankingScreen from './src/screens/GroupRankingScreen';
 import GroupChatScreen from './src/screens/GroupChatScreen';
@@ -214,6 +215,11 @@ export default function App() {
               />
               
               {/* Community Stack - Grupos */}
+              <Stack.Screen 
+                name="MyGroups" 
+                component={MyGroupsScreen} 
+                options={{ animation: 'slide_from_right' }}
+              />
               <Stack.Screen 
                 name="CreateGroup" 
                 component={CreateGroupScreen} 
