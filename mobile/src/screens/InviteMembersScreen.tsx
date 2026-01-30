@@ -9,22 +9,38 @@ import {
   Alert,
   Linking,
   Platform,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
+import { api } from '../services/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'InviteMembers'>;
+
+interface FollowingUser {
+  id: number;
+  name: string;
+  username: string;
+  profilePhoto: string | null;
+  invited: boolean;
+}
 
 export default function InviteMembersScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { groupId, groupName } = route.params || { groupId: '', groupName: 'Grupo' };
+  const { user } = useApp();
   
   const [inviteLink, setInviteLink] = useState('');
+  const [following, setFollowing] = useState<FollowingUser[]>([]);
+  const [loadingFollowing, setLoadingFollowing] = useState(true);
+  const [invitingUser, setInvitingUser] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -33,6 +49,49 @@ export default function InviteMembersScreen() {
     const uniqueCode = `${groupId}-${Date.now().toString(36)}`;
     setInviteLink(`${baseUrl}/${uniqueCode}`);
   }, [groupId]);
+
+  useEffect(() => {
+    const loadFollowing = async () => {
+      if (!user?.id) {
+        setLoadingFollowing(false);
+        return;
+      }
+      try {
+        const result = await api.getFollowing(user.id, 50, 0);
+        const users = result.users.map((u: any) => ({
+          id: u.id,
+          name: u.name || u.username,
+          username: u.username,
+          profilePhoto: u.profilePhoto,
+          invited: false,
+        }));
+        setFollowing(users);
+      } catch (error) {
+        console.error('Error loading following:', error);
+      } finally {
+        setLoadingFollowing(false);
+      }
+    };
+    loadFollowing();
+  }, [user?.id]);
+
+  const handleInviteUser = async (userId: number) => {
+    setInvitingUser(userId);
+    try {
+      // TODO: Implement actual invite API call
+      // await api.inviteToGroup(groupId, userId);
+      
+      // For now, mark as invited locally
+      setFollowing(prev => prev.map(u => 
+        u.id === userId ? { ...u, invited: true } : u
+      ));
+      Alert.alert('Convite Enviado', 'O convite foi enviado com sucesso!');
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível enviar o convite');
+    } finally {
+      setInvitingUser(null);
+    }
+  };
 
   const handleCopyLink = async () => {
     try {
@@ -196,6 +255,55 @@ export default function InviteMembersScreen() {
               <Text style={styles.shareLabel}>Mais</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* Pessoas que você segue */}
+        <View style={styles.followingSection}>
+          <Text style={styles.sectionTitle}>Pessoas que você segue</Text>
+          {loadingFollowing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#00ff88" />
+            </View>
+          ) : following.length === 0 ? (
+            <View style={styles.emptyFollowing}>
+              <Ionicons name="people-outline" size={40} color="#666" />
+              <Text style={styles.emptyFollowingText}>Você ainda não segue ninguém</Text>
+            </View>
+          ) : (
+            <View style={styles.followingList}>
+              {following.slice(0, 10).map((person) => (
+                <View key={person.id} style={styles.followingItem}>
+                  {person.profilePhoto ? (
+                    <Image source={{ uri: person.profilePhoto }} style={styles.followingAvatar} />
+                  ) : (
+                    <View style={[styles.followingAvatar, styles.followingAvatarPlaceholder]}>
+                      <Ionicons name="person" size={20} color="#666" />
+                    </View>
+                  )}
+                  <View style={styles.followingInfo}>
+                    <Text style={styles.followingName}>{person.name}</Text>
+                    <Text style={styles.followingUsername}>@{person.username}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.inviteButton, person.invited && styles.inviteButtonDisabled]}
+                    onPress={() => !person.invited && handleInviteUser(person.id)}
+                    disabled={person.invited || invitingUser === person.id}
+                  >
+                    {invitingUser === person.id ? (
+                      <ActivityIndicator size="small" color="#00ff88" />
+                    ) : (
+                      <Text style={[styles.inviteButtonText, person.invited && styles.inviteButtonTextDisabled]}>
+                        {person.invited ? 'Convidado' : 'Convidar'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {following.length > 10 && (
+                <Text style={styles.moreFollowing}>+{following.length - 10} pessoas</Text>
+              )}
+            </View>
+          )}
         </View>
 
         {/* Importar Contatos */}
@@ -391,5 +499,86 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 8,
     lineHeight: 18,
+  },
+  followingSection: {
+    marginTop: 24,
+  },
+  loadingContainer: {
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyFollowing: {
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#1a2a44',
+    borderRadius: 12,
+  },
+  emptyFollowingText: {
+    color: '#888',
+    fontSize: 14,
+    marginTop: 12,
+  },
+  followingList: {
+    backgroundColor: '#1a2a44',
+    borderRadius: 12,
+    padding: 8,
+  },
+  followingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#0a1628',
+  },
+  followingAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+  },
+  followingAvatarPlaceholder: {
+    backgroundColor: '#0a1628',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  followingInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  followingName: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  followingUsername: {
+    color: '#888',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  inviteButton: {
+    backgroundColor: '#00ff88',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    minWidth: 90,
+    alignItems: 'center',
+  },
+  inviteButtonDisabled: {
+    backgroundColor: '#1a2a44',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  inviteButtonText: {
+    color: '#0a1628',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  inviteButtonTextDisabled: {
+    color: '#888',
+  },
+  moreFollowing: {
+    color: '#888',
+    fontSize: 13,
+    textAlign: 'center',
+    padding: 12,
   },
 });
