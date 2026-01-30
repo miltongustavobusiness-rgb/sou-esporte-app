@@ -67,14 +67,16 @@ export default function TrainHubScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useApp();
   const [recentTrainings, setRecentTrainings] = useState<any[]>(FALLBACK_RECENT_TRAININGS);
-  const [stats, setStats] = useState({ trainingsThisMonth: 12, totalDistance: '87km', avgPace: '5:32' });
+  const [stats, setStats] = useState({ trainingsThisMonth: 0, totalDistance: '0km', avgPace: '--:--' });
   const [loading, setLoading] = useState(true);
 
-  // Fetch user's recent trainings from API
+  // Fetch user's recent trainings and stats from API
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        
+        // Fetch trainings
         const myTrainings = await api.getMyTrainings();
         if (myTrainings && myTrainings.length > 0) {
           // Transform API response to match expected format
@@ -90,6 +92,22 @@ export default function TrainHubScreen() {
           }));
           setRecentTrainings(transformed);
           console.log('Recent trainings loaded from API:', transformed.length);
+          
+          // Calculate stats from trainings
+          const thisMonth = new Date().getMonth();
+          const trainingsThisMonth = myTrainings.filter((t: any) => {
+            const trainingDate = new Date(t.scheduledAt);
+            return trainingDate.getMonth() === thisMonth;
+          }).length;
+          
+          setStats({
+            trainingsThisMonth: trainingsThisMonth || 0,
+            totalDistance: myTrainings.reduce((acc: number, t: any) => acc + (parseFloat(t.distance) || 0), 0).toFixed(0) + 'km',
+            avgPace: '5:32', // TODO: Calculate from activities when available
+          });
+        } else {
+          // No trainings - set empty stats
+          setStats({ trainingsThisMonth: 0, totalDistance: '0km', avgPace: '--:--' });
         }
       } catch (error) {
         console.log('Error fetching trainings, using fallback:', error);
