@@ -18,7 +18,9 @@ export type RootStackParamList = {
   Chat: { recipientId: number; recipientName: string };
   AthleteHome: undefined;
   Groups: undefined;
+  MyGroups: undefined;
   CreateGroup: undefined;
+  EditGroup: { groupId: number; groupName: string };
   GroupDetail: { groupId: number; groupName: string; isAdmin?: boolean };
   InviteMembers: { groupId: number; groupName: string };
   CreateTraining: { groupId?: number } | undefined;
