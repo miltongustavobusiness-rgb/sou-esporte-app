@@ -21,7 +21,8 @@ import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-const GROUPS = [
+// Fallback groups when API fails
+const FALLBACK_GROUPS = [
   { id: '1', name: 'Lobos Corredores', avatar: '🐺' },
   { id: '2', name: 'Trail Runners', avatar: '🏃' },
   { id: '3', name: 'Pedal ES', avatar: '🚴' },
@@ -38,8 +39,40 @@ export default function CreateTrainingScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { user } = useApp();
   
+  // Groups from API
+  const [groups, setGroups] = useState<any[]>(FALLBACK_GROUPS);
+  const [loadingGroups, setLoadingGroups] = useState(true);
+  
   const [selectedGroup, setSelectedGroup] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  
+  // Load user's groups from API
+  useEffect(() => {
+    const loadGroups = async () => {
+      try {
+        setLoadingGroups(true);
+        const userGroups = await api.getUserGroups();
+        if (userGroups && userGroups.length > 0) {
+          // Transform API data to match component format
+          const formattedGroups = userGroups.map((g: any) => ({
+            id: String(g.id),
+            name: g.name || 'Grupo',
+            avatar: g.photoUrl ? null : '🏃', // Use emoji if no photo
+            photoUrl: g.photoUrl,
+          }));
+          setGroups(formattedGroups);
+        } else {
+          setGroups(FALLBACK_GROUPS);
+        }
+      } catch (error) {
+        console.error('Error loading groups:', error);
+        setGroups(FALLBACK_GROUPS);
+      } finally {
+        setLoadingGroups(false);
+      }
+    };
+    loadGroups();
+  }, []);
   const [selectedType, setSelectedType] = useState<string | null>(null);
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
@@ -134,7 +167,7 @@ export default function CreateTrainingScreen() {
           <Text style={styles.sectionTitle}>Grupo *</Text>
           <Text style={styles.sectionSubtitle}>Selecione o grupo para o treino</Text>
           <View style={styles.groupsContainer}>
-            {GROUPS.map(group => (
+            {groups.map(group => (
               <TouchableOpacity
                 key={group.id}
                 style={[
