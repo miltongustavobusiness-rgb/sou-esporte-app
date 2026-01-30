@@ -621,7 +621,7 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
@@ -633,9 +633,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#334155',
   },
   backButton: {
     padding: 4,
@@ -647,7 +647,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#f8fafc',
   },
   headerMeta: {
     flexDirection: 'row',
@@ -657,7 +657,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
   },
   menuButton: {
     padding: 4,
@@ -672,15 +672,15 @@ const styles = StyleSheet.create({
   coverImage: {
     width: '100%',
     height: 150,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#334155',
   },
   quickActionsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     paddingVertical: 16,
     paddingHorizontal: 8,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#334155',
   },
   quickAction: {
     flex: 1,
@@ -698,18 +698,18 @@ const styles = StyleSheet.create({
   quickActionLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
   },
   quickActionValue: {
     fontSize: 11,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 2,
   },
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#334155',
   },
   tab: {
     flex: 1,
@@ -726,7 +726,7 @@ const styles = StyleSheet.create({
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
+    color: '#94a3b8',
   },
   tabLabelActive: {
     color: '#00C853',
@@ -741,17 +741,17 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
     marginTop: 12,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 4,
     textAlign: 'center',
   },
   postCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#334155',
   },
   authorInfo: {
     flex: 1,
@@ -774,16 +774,16 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
   },
   postTime: {
     fontSize: 12,
-    color: '#999',
+    color: '#64748b',
     marginTop: 2,
   },
   postContent: {
     fontSize: 15,
-    color: '#333',
+    color: '#f8fafc',
     lineHeight: 22,
   },
   postImage: {
@@ -791,14 +791,14 @@ const styles = StyleSheet.create({
     height: 200,
     borderRadius: 8,
     marginTop: 12,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#334155',
   },
   postActions: {
     flexDirection: 'row',
     marginTop: 12,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: '#334155',
     gap: 20,
   },
   postAction: {
@@ -808,13 +808,13 @@ const styles = StyleSheet.create({
   },
   postActionText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
   },
   createTrainingButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f0fff4',
+    backgroundColor: 'rgba(34, 197, 94, 0.15)',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
@@ -829,7 +829,7 @@ const styles = StyleSheet.create({
     color: '#00C853',
   },
   treinoCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -852,11 +852,11 @@ const styles = StyleSheet.create({
   treinoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
   },
   treinoDate: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 2,
   },
   treinoParticipants: {
@@ -866,7 +866,7 @@ const styles = StyleSheet.create({
   },
   treinoParticipantsText: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
   },
   treinoLocation: {
     flexDirection: 'row',
@@ -876,7 +876,7 @@ const styles = StyleSheet.create({
   },
   treinoLocationText: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
   },
   participarButton: {
     backgroundColor: '#00C853',
@@ -891,7 +891,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   rankingPreviewCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
@@ -905,11 +905,11 @@ const styles = StyleSheet.create({
   rankingPreviewTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#f8fafc',
   },
   rankingPreviewText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -924,7 +924,7 @@ const styles = StyleSheet.create({
     color: '#00C853',
   },
   chatPreviewCard: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
@@ -938,11 +938,11 @@ const styles = StyleSheet.create({
   chatPreviewTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#f8fafc',
   },
   chatPreviewText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     textAlign: 'center',
     marginBottom: 16,
   },
@@ -964,9 +964,9 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderWidth: 1,
-    borderColor: '#FF5252',
+    borderColor: '#ef4444',
     gap: 8,
   },
   leaveButtonText: {
@@ -980,7 +980,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   trainingModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -989,7 +989,7 @@ const styles = StyleSheet.create({
   modalHandle: {
     width: 40,
     height: 4,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#334155',
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 16,
@@ -997,12 +997,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#333',
+    color: '#f8fafc',
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 20,
@@ -1014,7 +1014,7 @@ const styles = StyleSheet.create({
   },
   trainingOption: {
     width: '48%',
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a',
     borderRadius: 12,
     padding: 16,
     marginHorizontal: '1%',
@@ -1032,11 +1032,11 @@ const styles = StyleSheet.create({
   trainingOptionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
   },
   trainingOptionDesc: {
     fontSize: 12,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1048,6 +1048,6 @@ const styles = StyleSheet.create({
   cancelModalButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
+    color: '#94a3b8',
   },
 });
