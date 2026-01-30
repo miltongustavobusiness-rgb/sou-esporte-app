@@ -380,7 +380,7 @@ export default function GroupRankingScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a',
   },
   loadingContainer: {
     flex: 1,
@@ -392,9 +392,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#334155',
   },
   backButton: {
     padding: 4,
@@ -406,20 +406,20 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: '#f8fafc',
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 2,
   },
   infoButton: {
     padding: 4,
   },
   tabsContainer: {
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: '#334155',
   },
   tabsContent: {
     paddingHorizontal: 12,
@@ -432,14 +432,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#0f172a',
     marginRight: 8,
     gap: 6,
   },
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
+    color: '#94a3b8',
   },
   tabLabelSelected: {
     color: '#fff',
@@ -454,9 +454,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 16,
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: '#334155',
   },
   periodChipSelected: {
     backgroundColor: '#00C853',
@@ -464,7 +464,7 @@ const styles = StyleSheet.create({
   },
   periodLabel: {
     fontSize: 13,
-    color: '#666',
+    color: '#94a3b8',
   },
   periodLabelSelected: {
     color: '#fff',
@@ -600,7 +600,7 @@ const styles = StyleSheet.create({
   },
   nextGoalLabel: {
     fontSize: 11,
-    color: '#666',
+    color: '#94a3b8',
   },
   nextGoalValue: {
     fontSize: 14,
@@ -610,13 +610,13 @@ const styles = StyleSheet.create({
   listTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
     marginBottom: 12,
   },
   rankingItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#1e293b',
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
@@ -637,7 +637,7 @@ const styles = StyleSheet.create({
     height: 44,
     borderRadius: 22,
     marginLeft: 12,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: '#334155',
   },
   rankingInfo: {
     flex: 1,
@@ -646,11 +646,11 @@ const styles = StyleSheet.create({
   rankingName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
   },
   rankingStat: {
     fontSize: 12,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 2,
   },
   pointsContainer: {
@@ -663,7 +663,7 @@ const styles = StyleSheet.create({
   },
   pointsLabel: {
     fontSize: 11,
-    color: '#666',
+    color: '#94a3b8',
   },
   emptyContainer: {
     alignItems: 'center',
@@ -672,12 +672,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: '#f8fafc',
     marginTop: 16,
   },
   emptyText: {
     fontSize: 14,
-    color: '#666',
+    color: '#94a3b8',
     marginTop: 8,
     textAlign: 'center',
   },
