@@ -9,6 +9,7 @@ import { AppProvider } from './src/contexts/AppContext';
 import { FiltersProvider } from './src/contexts/FiltersContext';
 import { ToastProvider } from './src/contexts/ToastContext';
 import { COLORS } from './src/constants/theme';
+import Toast from 'react-native-toast-message';
 
 // Screens
 import SplashScreenComponent from './src/screens/SplashScreen';
@@ -474,6 +475,7 @@ export default function App() {
           </ToastProvider>
         </FiltersProvider>
       </AppProvider>
+      <Toast />
     </View>
   );
 }
