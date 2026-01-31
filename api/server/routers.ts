@@ -1643,6 +1643,221 @@ export const appRouter = router({
           loginProvider: user.loginMethod || 'email', // Use existing loginMethod field
         };
       }),
+    
+    // ==================== MOBILE GROUPS API ====================
+    // These routes accept userId as parameter since mobile doesn't use cookie auth
+    
+    // List user's groups (mobile)
+    getUserGroups: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        return await db.getUserGroups(input.userId);
+      }),
+    
+    // Create group (mobile)
+    createGroup: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        name: z.string().min(3).max(100),
+        description: z.string().max(1000).optional(),
+        privacy: z.enum(['public', 'private']).default('public'),
+        groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'other']).default('running'),
+        city: z.string().optional(),
+        state: z.string().optional(),
+        meetingPoint: z.string().optional(),
+        requiresApproval: z.boolean().default(false),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const { userId, ...groupData } = input;
+        const groupId = await db.createGroup({
+          ...groupData,
+          ownerId: userId,
+        });
+        
+        return { success: true, groupId };
+      }),
+    
+    // Get group details (mobile)
+    getGroup: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const group = await db.getGroupById(input.groupId);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
+        }
+        
+        const membership = await db.getGroupMembership(input.groupId, input.userId);
+        const isOwner = group.ownerId === input.userId;
+        const isAdmin = membership?.role === 'admin' || membership?.role === 'owner';
+        const isMember = !!membership;
+        
+        return { ...group, membership, isOwner, isAdmin, isMember };
+      }),
+    
+    // Join group (mobile)
+    joinGroup: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const success = await db.joinGroup(input.groupId, input.userId);
+        if (!success) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Não foi possível entrar no grupo' });
+        }
+        return { success: true };
+      }),
+    
+    // Leave group (mobile)
+    leaveGroup: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const success = await db.leaveGroup(input.groupId, input.userId);
+        if (!success) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Não foi possível sair do grupo' });
+        }
+        return { success: true };
+      }),
+    
+    // ==================== MOBILE TRAININGS API ====================
+    // These routes accept userId as parameter since mobile doesn't use cookie auth
+    
+    // List trainings (mobile)
+    getTrainings: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number().optional(),
+        status: z.string().optional(),
+        limit: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        const { userId, ...filters } = input;
+        return await db.getTrainings(filters);
+      }),
+    
+    // Get training by ID (mobile)
+    getTrainingById: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        trainingId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        return await db.getTrainingById(input.trainingId);
+      }),
+    
+    // Get user's trainings (mobile)
+    getMyTrainings: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        return await db.getUserTrainings(input.userId);
+      }),
+    
+    // Get nearby trainings (mobile)
+    getNearbyTrainings: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        lat: z.number(),
+        lng: z.number(),
+        radiusKm: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        return await db.getNearbyTrainings(input.lat, input.lng, input.radiusKm);
+      }),
+    
+    // Create training (mobile)
+    createTraining: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        title: z.string(),
+        description: z.string().optional(),
+        trainingType: z.string(),
+        scheduledAt: z.string(), // ISO date string
+        durationMinutes: z.number().optional(),
+        meetingPoint: z.string().optional(),
+        meetingLat: z.number().optional(),
+        meetingLng: z.number().optional(),
+        maxParticipants: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        const { userId, ...trainingData } = input;
+        const trainingId = await db.createTraining({
+          ...trainingData,
+          scheduledAt: new Date(trainingData.scheduledAt),
+          createdBy: userId,
+        });
+        return { id: trainingId, success: true };
+      }),
+    
+    // Join training (mobile)
+    joinTraining: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        trainingId: z.number(),
+        response: z.enum(['going', 'maybe', 'not_going']),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        await db.joinTraining(input.trainingId, input.userId, input.response);
+        return { success: true };
+      }),
   }),
 
   // ==================== GROUPS V12.10 ====================

@@ -1630,7 +1630,18 @@ ApiService.prototype.getSavedPosts = async function(limit: number = 50, offset: 
 // Groups
 ApiService.prototype.getUserGroups = async function(): Promise<Group[]> {
   try {
-    return await this.trpcQuery<Group[]>('groups.list', {});
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Get user groups: User not logged in');
+      return [];
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcQuery<Group[]>('mobile.getUserGroups', { userId });
   } catch (error) {
     console.error('Get user groups error:', error);
     return [];
@@ -1639,7 +1650,18 @@ ApiService.prototype.getUserGroups = async function(): Promise<Group[]> {
 
 ApiService.prototype.getGroup = async function(groupId: number): Promise<Group | null> {
   try {
-    return await this.trpcQuery<Group>('groups.get', { groupId });
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Get group: User not logged in');
+      return null;
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcQuery<Group>('mobile.getGroup', { userId, groupId });
   } catch (error) {
     console.error('Get group error:', error);
     return null;
@@ -1657,16 +1679,38 @@ ApiService.prototype.createGroup = async function(data: {
   requiresApproval?: boolean;
 }): Promise<{ success: boolean; groupId?: number }> {
   try {
-    return await this.trpcMutation<{ success: boolean; groupId: number }>('groups.create', data);
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Create group: User not logged in');
+      throw new Error('Você precisa estar autenticado para realizar esta ação.');
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.createGroup', { userId, ...data });
   } catch (error) {
     console.error('Create group error:', error);
-    return { success: false };
+    throw error;
   }
 };
 
 ApiService.prototype.joinGroup = async function(groupId: number): Promise<{ success: boolean }> {
   try {
-    return await this.trpcMutation<{ success: boolean }>('groups.join', { groupId });
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Join group: User not logged in');
+      return { success: false };
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcMutation<{ success: boolean }>('mobile.joinGroup', { userId, groupId });
   } catch (error) {
     console.error('Join group error:', error);
     return { success: false };
@@ -1675,7 +1719,18 @@ ApiService.prototype.joinGroup = async function(groupId: number): Promise<{ succ
 
 ApiService.prototype.leaveGroup = async function(groupId: number): Promise<{ success: boolean }> {
   try {
-    return await this.trpcMutation<{ success: boolean }>('groups.leave', { groupId });
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Leave group: User not logged in');
+      return { success: false };
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcMutation<{ success: boolean }>('mobile.leaveGroup', { userId, groupId });
   } catch (error) {
     console.error('Leave group error:', error);
     return { success: false };
@@ -2534,7 +2589,18 @@ ApiService.prototype.getUnreadSocialNotificationsCount = async function() {
 
 ApiService.prototype.getTrainings = async function(filters?: { groupId?: number; status?: string; limit?: number }) {
   try {
-    return await this.trpcQuery('trainings.list', filters || {});
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Get trainings: User not logged in');
+      return [];
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcQuery('mobile.getTrainings', { userId, ...(filters || {}) });
   } catch (error) {
     console.error('Get trainings error:', error);
     return [];
@@ -2543,7 +2609,18 @@ ApiService.prototype.getTrainings = async function(filters?: { groupId?: number;
 
 ApiService.prototype.getTrainingById = async function(trainingId: number) {
   try {
-    return await this.trpcQuery('trainings.getById', { trainingId });
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Get training by id: User not logged in');
+      return null;
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcQuery('mobile.getTrainingById', { userId, trainingId });
   } catch (error) {
     console.error('Get training by id error:', error);
     return null;
@@ -2552,7 +2629,18 @@ ApiService.prototype.getTrainingById = async function(trainingId: number) {
 
 ApiService.prototype.getMyTrainings = async function() {
   try {
-    return await this.trpcQuery('trainings.myTrainings', {});
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Get my trainings: User not logged in');
+      return [];
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcQuery('mobile.getMyTrainings', { userId });
   } catch (error) {
     console.error('Get my trainings error:', error);
     return [];
@@ -2561,7 +2649,18 @@ ApiService.prototype.getMyTrainings = async function() {
 
 ApiService.prototype.getNearbyTrainings = async function(lat: number, lng: number, radiusKm?: number) {
   try {
-    return await this.trpcQuery('trainings.nearby', { lat, lng, radiusKm });
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Get nearby trainings: User not logged in');
+      return [];
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcQuery('mobile.getNearbyTrainings', { userId, lat, lng, radiusKm });
   } catch (error) {
     console.error('Get nearby trainings error:', error);
     return [];
@@ -2581,16 +2680,38 @@ ApiService.prototype.createTraining = async function(data: {
   maxParticipants?: number;
 }) {
   try {
-    return await this.trpcMutation('trainings.create', data);
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Create training: User not logged in');
+      throw new Error('Você precisa estar autenticado para realizar esta ação.');
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcMutation('mobile.createTraining', { userId, ...data });
   } catch (error) {
     console.error('Create training error:', error);
-    return { success: false };
+    throw error;
   }
 };
 
 ApiService.prototype.joinTraining = async function(trainingId: number, response: 'going' | 'maybe' | 'not_going') {
   try {
-    return await this.trpcMutation('trainings.join', { trainingId, response });
+    // Get userId from stored user data
+    const userData = await AsyncStorage.getItem('@souesporte_user');
+    const user = userData ? JSON.parse(userData) : null;
+    const userId = user?.id;
+    
+    if (!userId) {
+      console.error('Join training: User not logged in');
+      return { success: false };
+    }
+    
+    // Use mobile endpoint which accepts userId parameter
+    return await this.trpcMutation('mobile.joinTraining', { userId, trainingId, response });
   } catch (error) {
     console.error('Join training error:', error);
     return { success: false };
