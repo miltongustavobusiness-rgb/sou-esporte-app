@@ -226,15 +226,16 @@ export default function CreateGroupScreen() {
     
     try {
       // Mapear modalidade para groupType da API
-      const groupTypeMap: Record<string, 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other'> = {
+      // Schema enum: running, cycling, triathlon, trail, swimming, fitness, funcional, caminhada_trail, yoga, lutas, other
+      const groupTypeMap: Record<string, string> = {
         'corrida': 'running',
         'bike': 'cycling',
         'triathlon': 'triathlon',
-        'caminhada_trail': 'trail',
+        'caminhada_trail': 'caminhada_trail',
         'natacao': 'swimming',
-        'funcional': 'fitness',
-        'yoga': 'fitness',
-        'lutas': 'fitness',
+        'funcional': 'funcional',
+        'yoga': 'yoga',
+        'lutas': 'lutas',
         'outro': 'other',
       };
 

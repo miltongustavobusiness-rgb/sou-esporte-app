@@ -1672,7 +1672,7 @@ ApiService.prototype.createGroup = async function(data: {
   name: string;
   description?: string;
   privacy?: 'public' | 'private';
-  groupType?: 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'other';
+  groupType?: 'running' | 'cycling' | 'triathlon' | 'trail' | 'swimming' | 'fitness' | 'funcional' | 'caminhada_trail' | 'yoga' | 'lutas' | 'other';
   city?: string;
   state?: string;
   meetingPoint?: string;
@@ -1689,8 +1689,39 @@ ApiService.prototype.createGroup = async function(data: {
       throw new Error('Você precisa estar autenticado para realizar esta ação.');
     }
     
+    // Clean up data - remove empty strings and undefined values
+    const cleanData: any = {
+      userId,
+      name: data.name,
+    };
+    
+    // Only add optional fields if they have non-empty values
+    if (data.description && data.description.trim()) {
+      cleanData.description = data.description.trim();
+    }
+    if (data.privacy) {
+      cleanData.privacy = data.privacy;
+    }
+    if (data.groupType) {
+      cleanData.groupType = data.groupType;
+    }
+    if (data.city && data.city.trim()) {
+      cleanData.city = data.city.trim();
+    }
+    if (data.state && data.state.trim()) {
+      cleanData.state = data.state.trim();
+    }
+    if (data.meetingPoint && data.meetingPoint.trim()) {
+      cleanData.meetingPoint = data.meetingPoint.trim();
+    }
+    if (typeof data.requiresApproval === 'boolean') {
+      cleanData.requiresApproval = data.requiresApproval;
+    }
+    
+    console.log('[API] Creating group with data:', JSON.stringify(cleanData));
+    
     // Use mobile endpoint which accepts userId parameter
-    return await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.createGroup', { userId, ...data });
+    return await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.createGroup', cleanData);
   } catch (error) {
     console.error('Create group error:', error);
     throw error;

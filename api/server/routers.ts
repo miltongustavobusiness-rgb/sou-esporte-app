@@ -1665,46 +1665,66 @@ export const appRouter = router({
       .input(z.object({
         userId: z.number(),
         name: z.string().min(3).max(100),
-        description: z.string().max(1000).optional().nullable(),
-        privacy: z.enum(['public', 'private']).default('public'),
-        groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'funcional', 'caminhada_trail', 'yoga', 'lutas', 'other']).default('running'),
-        city: z.string().optional().nullable(),
-        state: z.string().optional().nullable(),
-        meetingPoint: z.string().optional().nullable(),
-        requiresApproval: z.boolean().default(false),
+        description: z.string().max(1000).optional(),
+        privacy: z.enum(['public', 'private']).optional(),
+        groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'funcional', 'caminhada_trail', 'yoga', 'lutas', 'other']).optional(),
+        city: z.string().max(100).optional(),
+        state: z.string().max(2).optional(),
+        meetingPoint: z.string().optional(),
+        requiresApproval: z.boolean().optional(),
       }))
       .mutation(async ({ input }) => {
+        console.log('[mobile.createGroup] Input received:', JSON.stringify(input));
+        
         const user = await db.getUserById(input.userId);
         if (!user) {
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
         }
         
-        // Build group data object with only defined fields
-        const groupInsertData: any = {
-          name: input.name,
-          privacy: input.privacy || 'public',
-          groupType: input.groupType || 'running',
-          requiresApproval: input.requiresApproval ?? false,
-          ownerId: input.userId,
-        };
-        
-        // Only add optional fields if they have values
-        if (input.description && input.description.trim()) {
-          groupInsertData.description = input.description.trim();
+        try {
+          // Build group data object with only required fields + defined optional fields
+          const groupInsertData: any = {
+            name: input.name,
+            ownerId: input.userId,
+          };
+          
+          // Add optional fields only if they are defined and valid
+          if (input.privacy) {
+            groupInsertData.privacy = input.privacy;
+          }
+          if (input.groupType) {
+            groupInsertData.groupType = input.groupType;
+          }
+          if (typeof input.requiresApproval === 'boolean') {
+            groupInsertData.requiresApproval = input.requiresApproval;
+          }
+          if (input.description && input.description.trim().length > 0) {
+            groupInsertData.description = input.description.trim();
+          }
+          if (input.city && input.city.trim().length > 0) {
+            groupInsertData.city = input.city.trim();
+          }
+          if (input.state && input.state.trim().length > 0) {
+            groupInsertData.state = input.state.trim().substring(0, 2).toUpperCase();
+          }
+          if (input.meetingPoint && input.meetingPoint.trim().length > 0) {
+            groupInsertData.meetingPoint = input.meetingPoint.trim();
+          }
+          
+          console.log('[mobile.createGroup] Inserting group data:', JSON.stringify(groupInsertData));
+          
+          const groupId = await db.createGroup(groupInsertData);
+          
+          console.log('[mobile.createGroup] Group created successfully with ID:', groupId);
+          
+          return { success: true, groupId };
+        } catch (error: any) {
+          console.error('[mobile.createGroup] Error creating group:', error);
+          throw new TRPCError({ 
+            code: 'INTERNAL_SERVER_ERROR', 
+            message: `Erro ao criar grupo: ${error.message || 'Erro desconhecido'}` 
+          });
         }
-        if (input.city && input.city.trim()) {
-          groupInsertData.city = input.city.trim();
-        }
-        if (input.state && input.state.trim()) {
-          groupInsertData.state = input.state.trim();
-        }
-        if (input.meetingPoint && input.meetingPoint.trim()) {
-          groupInsertData.meetingPoint = input.meetingPoint.trim();
-        }
-        
-        const groupId = await db.createGroup(groupInsertData);
-        
-        return { success: true, groupId };
       }),
     
     // Get group details (mobile)
