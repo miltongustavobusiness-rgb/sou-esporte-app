@@ -377,10 +377,10 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   followingList: {
-    backgroundColor: '#1E293B',
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#334155',
+    backgroundColor: 'transparent',
+    borderRadius: 0,
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   followingItem: {
     flexDirection: 'row',
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
   importButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: 'transparent',
     padding: 16,
     borderRadius: 12,
     marginTop: 16,
@@ -470,12 +470,12 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   qrContainer: {
-    backgroundColor: '#1E293B',
-    borderRadius: 16,
+    backgroundColor: 'transparent',
+    borderRadius: 0,
     padding: 24,
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#334155',
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   qrPlaceholder: {
     width: 160,
@@ -499,7 +499,7 @@ const styles = StyleSheet.create({
   linkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#1E293B',
+    backgroundColor: 'transparent',
     borderRadius: 12,
     paddingLeft: 16,
     paddingRight: 4,
