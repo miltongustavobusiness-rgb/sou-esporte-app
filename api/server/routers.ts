@@ -2128,6 +2128,136 @@ export const appRouter = router({
         await db.joinTraining(input.trainingId, input.userId, input.response);
         return { success: true };
       }),
+    
+    // Update group (mobile)
+    updateGroup: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        name: z.string().optional(),
+        description: z.string().optional(),
+        city: z.string().optional(),
+        neighborhood: z.string().optional(),
+        rules: z.string().optional(),
+        coverImageUrl: z.string().optional().nullable(),
+        visibility: z.enum(['public', 'private']).optional(),
+        requiresApproval: z.boolean().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const group = await db.getGroupById(input.groupId);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
+        }
+        
+        // Check if user is owner or admin
+        if (group.ownerId !== input.userId) {
+          const membership = await db.getGroupMembership(input.groupId, input.userId);
+          if (!membership || (membership.role !== 'admin' && membership.role !== 'owner')) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para editar este grupo' });
+          }
+        }
+        
+        const { userId, groupId, ...updateData } = input;
+        await db.updateGroup(groupId, updateData);
+        return { success: true };
+      }),
+    
+    // Delete group (mobile)
+    deleteGroup: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const group = await db.getGroupById(input.groupId);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
+        }
+        
+        // Only owner can delete
+        if (group.ownerId !== input.userId) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas o dono pode excluir o grupo' });
+        }
+        
+        await db.deleteGroup(input.groupId);
+        return { success: true };
+      }),
+    
+    // Update member role (mobile)
+    updateMemberRole: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        targetUserId: z.number(),
+        role: z.enum(['member', 'moderator', 'admin']),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const group = await db.getGroupById(input.groupId);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
+        }
+        
+        // Check if user is owner or admin
+        if (group.ownerId !== input.userId) {
+          const membership = await db.getGroupMembership(input.groupId, input.userId);
+          if (!membership || membership.role !== 'admin') {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para alterar funções de membros' });
+          }
+        }
+        
+        await db.updateGroupMember(input.groupId, input.targetUserId, { role: input.role });
+        return { success: true };
+      }),
+    
+    // Remove member (mobile)
+    removeMember: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        targetUserId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const group = await db.getGroupById(input.groupId);
+        if (!group) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
+        }
+        
+        // Check if user is owner or admin
+        if (group.ownerId !== input.userId) {
+          const membership = await db.getGroupMembership(input.groupId, input.userId);
+          if (!membership || (membership.role !== 'admin' && membership.role !== 'moderator')) {
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não tem permissão para remover membros' });
+          }
+        }
+        
+        // Can't remove owner
+        if (input.targetUserId === group.ownerId) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Não é possível remover o dono do grupo' });
+        }
+        
+        await db.removeGroupMember(input.groupId, input.targetUserId);
+        return { success: true };
+      }),
   }),
 
   // ==================== GROUPS V12.10 ====================

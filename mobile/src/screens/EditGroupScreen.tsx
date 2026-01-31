@@ -18,6 +18,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
 import { RootStackParamList } from '../types';
 import { apiRequest } from '../config/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'EditGroup'>;
@@ -25,6 +26,7 @@ type RouteProps = RouteProp<RootStackParamList, 'EditGroup'>;
 export default function EditGroupScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
+  const { user } = useApp();
   const { groupId, groupName } = route.params || { groupId: 0, groupName: 'Grupo' };
 
   // Loading states
@@ -43,21 +45,26 @@ export default function EditGroupScreen() {
 
   // Load group data
   useEffect(() => {
-    loadGroupData();
-  }, [groupId]);
+    if (user?.id) {
+      loadGroupData();
+    }
+  }, [groupId, user?.id]);
 
   const loadGroupData = async () => {
+    if (!user?.id) return;
+    
     try {
-      const group = await apiRequest('groups.getById', { groupId });
-      if (group) {
-        setNome(group.name || '');
-        setDescricao(group.description || '');
-        setCidade(group.city || '');
-        setBairro(group.neighborhood || '');
-        setRegras(group.rules || '');
-        setFotoCapa(group.coverImageUrl || null);
-        setVisibilidade(group.visibility === 'private' ? 'privado' : 'publico');
-        setAprovarMembrosManualmente(group.requiresApproval || false);
+      // Use mobile route with userId
+      const result = await apiRequest('getGroup', { userId: user.id, groupId });
+      if (result) {
+        setNome(result.name || '');
+        setDescricao(result.description || '');
+        setCidade(result.city || '');
+        setBairro(result.neighborhood || '');
+        setRegras(result.rules || '');
+        setFotoCapa(result.coverImageUrl || null);
+        setVisibilidade(result.visibility === 'private' ? 'privado' : 'publico');
+        setAprovarMembrosManualmente(result.requiresApproval || false);
       }
     } catch (error) {
       console.error('Error loading group:', error);
@@ -86,9 +93,16 @@ export default function EditGroupScreen() {
       return;
     }
 
+    if (!user?.id) {
+      Alert.alert('Erro', 'Você precisa estar logado para editar o grupo');
+      return;
+    }
+
     setSaving(true);
     try {
-      await apiRequest('groups.update', {
+      // Use mobile route with userId
+      await apiRequest('updateGroup', {
+        userId: user.id,
         groupId,
         name: nome.trim(),
         description: descricao.trim(),
@@ -112,6 +126,11 @@ export default function EditGroupScreen() {
   };
 
   const handleDeleteGroup = () => {
+    if (!user?.id) {
+      Alert.alert('Erro', 'Você precisa estar logado para excluir o grupo');
+      return;
+    }
+
     Alert.alert(
       'Excluir Grupo',
       'Tem certeza que deseja excluir este grupo? Esta ação não pode ser desfeita.',
@@ -122,7 +141,8 @@ export default function EditGroupScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await apiRequest('groups.delete', { groupId });
+              // Use mobile route with userId
+              await apiRequest('deleteGroup', { userId: user.id, groupId });
               Alert.alert('Sucesso', 'Grupo excluído com sucesso');
               navigation.navigate('MyGroups');
             } catch (error: any) {

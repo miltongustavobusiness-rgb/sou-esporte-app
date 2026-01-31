@@ -3094,6 +3094,72 @@ export async function getUserGroups(userId: number): Promise<any[]> {
   }
 }
 
+export async function updateGroup(groupId: number, data: {
+  name?: string;
+  description?: string;
+  city?: string;
+  neighborhood?: string;
+  rules?: string;
+  coverImageUrl?: string | null;
+  visibility?: 'public' | 'private';
+  requiresApproval?: boolean;
+}): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log(`[db.updateGroup] Updating group ${groupId}:`, data);
+    
+    // Build SET clause dynamically
+    const setClauses: string[] = [];
+    if (data.name !== undefined) setClauses.push(`name = '${data.name.replace(/'/g, "''")}'`);
+    if (data.description !== undefined) setClauses.push(`description = '${data.description.replace(/'/g, "''")}'`);
+    if (data.city !== undefined) setClauses.push(`city = '${data.city.replace(/'/g, "''")}'`);
+    if (data.neighborhood !== undefined) setClauses.push(`neighborhood = '${data.neighborhood.replace(/'/g, "''")}'`);
+    if (data.rules !== undefined) setClauses.push(`rules = '${data.rules.replace(/'/g, "''")}'`);
+    if (data.coverImageUrl !== undefined) setClauses.push(`coverImageUrl = ${data.coverImageUrl ? `'${data.coverImageUrl}'` : 'NULL'}`);
+    if (data.visibility !== undefined) setClauses.push(`visibility = '${data.visibility}'`);
+    if (data.requiresApproval !== undefined) setClauses.push(`requiresApproval = ${data.requiresApproval ? 1 : 0}`);
+    
+    if (setClauses.length === 0) return;
+    
+    setClauses.push('updatedAt = NOW()');
+    
+    await db.execute(
+      sql.raw(`UPDATE \`groups\` SET ${setClauses.join(', ')} WHERE id = ${groupId}`)
+    );
+    
+    console.log('[db.updateGroup] Group updated successfully');
+  } catch (error: any) {
+    console.error('[db.updateGroup] Error:', error.message);
+    throw error;
+  }
+}
+
+export async function deleteGroup(groupId: number): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log(`[db.deleteGroup] Deleting group ${groupId}`);
+    
+    // Delete all related data first
+    await db.execute(sql`DELETE FROM group_members WHERE groupId = ${groupId}`);
+    await db.execute(sql`DELETE FROM group_invites WHERE groupId = ${groupId}`);
+    await db.execute(sql`DELETE FROM group_messages WHERE groupId = ${groupId}`);
+    await db.execute(sql`DELETE FROM group_rankings WHERE groupId = ${groupId}`);
+    await db.execute(sql`DELETE FROM trainings WHERE groupId = ${groupId}`);
+    
+    // Delete the group
+    await db.execute(sql`DELETE FROM \`groups\` WHERE id = ${groupId}`);
+    
+    console.log('[db.deleteGroup] Group deleted successfully');
+  } catch (error: any) {
+    console.error('[db.deleteGroup] Error:', error.message);
+    throw error;
+  }
+}
+
 export async function joinGroup(groupId: number, userId: number): Promise<boolean> {
   try {
     const db = await getDb();
