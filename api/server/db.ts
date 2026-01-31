@@ -3190,48 +3190,30 @@ export async function deleteGroup(groupId: number): Promise<void> {
     
     console.log(`[db.deleteGroup] Deleting group ${groupId}`);
     
-    // Delete all related data first using raw SQL to avoid parameter binding issues
-    // Delete group members
-    await db.execute(sql.raw(`DELETE FROM group_members WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted group_members');
+    // Helper function to safely delete from a table (ignores if table doesn't exist)
+    const safeDelete = async (tableName: string) => {
+      try {
+        await db.execute(sql.raw(`DELETE FROM ${tableName} WHERE groupId = ${groupId}`));
+        console.log(`[db.deleteGroup] Deleted from ${tableName}`);
+      } catch (err: any) {
+        // Ignore errors for tables that don't exist
+        console.log(`[db.deleteGroup] Skipped ${tableName}: ${err.message}`);
+      }
+    };
     
-    // Delete group invites
-    await db.execute(sql.raw(`DELETE FROM group_invites WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted group_invites');
+    // Delete all related data first - each in try-catch to handle missing tables
+    await safeDelete('group_members');
+    await safeDelete('group_invites');
+    await safeDelete('group_messages');
+    await safeDelete('group_rankings');
+    await safeDelete('trainings');
+    await safeDelete('functional_trainings');
+    await safeDelete('hikes');
+    await safeDelete('yoga_sessions');
+    await safeDelete('fight_trainings');
+    await safeDelete('posts');
     
-    // Delete group messages
-    await db.execute(sql.raw(`DELETE FROM group_messages WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted group_messages');
-    
-    // Delete group rankings
-    await db.execute(sql.raw(`DELETE FROM group_rankings WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted group_rankings');
-    
-    // Delete trainings
-    await db.execute(sql.raw(`DELETE FROM trainings WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted trainings');
-    
-    // Delete functional trainings
-    await db.execute(sql.raw(`DELETE FROM functional_trainings WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted functional_trainings');
-    
-    // Delete hikes
-    await db.execute(sql.raw(`DELETE FROM hikes WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted hikes');
-    
-    // Delete yoga sessions
-    await db.execute(sql.raw(`DELETE FROM yoga_sessions WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted yoga_sessions');
-    
-    // Delete fight trainings
-    await db.execute(sql.raw(`DELETE FROM fight_trainings WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted fight_trainings');
-    
-    // Delete posts related to the group
-    await db.execute(sql.raw(`DELETE FROM posts WHERE groupId = ${groupId}`));
-    console.log('[db.deleteGroup] Deleted posts');
-    
-    // Delete the group
+    // Delete the group itself
     await db.execute(sql.raw(`DELETE FROM \`groups\` WHERE id = ${groupId}`));
     
     console.log('[db.deleteGroup] Group deleted successfully');

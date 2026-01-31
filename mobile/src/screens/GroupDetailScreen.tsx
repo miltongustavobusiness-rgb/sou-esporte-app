@@ -881,16 +881,25 @@ export default function GroupDetailScreen() {
             
             {/* Group Info */}
             <View style={styles.headerGroupInfo}>
-              {/* Group Logo */}
-              {group?.logoUrl && (
-                <Image
-                  source={{ uri: group.logoUrl }}
-                  style={styles.groupLogo}
-                />
-              )}
-              <Text style={styles.headerGroupName} numberOfLines={2}>
-                {group?.name || groupName}
-              </Text>
+              {/* Group Logo/Cover as Profile Photo */}
+              <View style={styles.groupProfileContainer}>
+                {(group?.logoUrl || coverImage) ? (
+                  <Image
+                    source={{ uri: group?.logoUrl || coverImage }}
+                    style={styles.groupProfileImage}
+                  />
+                ) : (
+                  <View style={styles.groupProfilePlaceholder}>
+                    <Ionicons name="people" size={32} color="#fff" />
+                  </View>
+                )}
+              </View>
+              <View style={styles.groupNameContainer}>
+                <Text style={styles.headerGroupLabel}>GRUPO:</Text>
+                <Text style={styles.headerGroupName} numberOfLines={2}>
+                  {group?.name || groupName}
+                </Text>
+              </View>
               <View style={styles.headerGroupMeta}>
                 <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
                 <Text style={styles.headerGroupLocation}>
@@ -1238,19 +1247,46 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   headerGroupInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     padding: 16,
     paddingBottom: 20,
   },
-  groupLogo: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    marginBottom: 8,
-    borderWidth: 2,
+  groupProfileContainer: {
+    marginRight: 12,
+  },
+  groupProfileImage: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    borderWidth: 3,
     borderColor: '#fff',
   },
+  groupProfilePlaceholder: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 3,
+    borderColor: '#fff',
+  },
+  groupNameContainer: {
+    flex: 1,
+  },
+  headerGroupLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+    letterSpacing: 1,
+    marginBottom: 2,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
+  },
   headerGroupName: {
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#fff',
     marginBottom: 4,
