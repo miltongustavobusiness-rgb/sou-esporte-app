@@ -21,7 +21,7 @@ import {
   ActionSheetIOS,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import * as DocumentPicker from 'expo-document-picker';
+// DocumentPicker removed - package not installed
 import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -537,20 +537,12 @@ export default function GroupDetailScreen() {
     }
   };
 
-  // Handle pick file
+  // Handle pick file - disabled (expo-document-picker not installed)
   const handlePickFile = async () => {
-    try {
-      const result = await DocumentPicker.getDocumentAsync({
-        type: '*/*',
-        copyToCacheDirectory: true,
-      });
-
-      if (!result.canceled && result.assets[0]) {
-        await uploadAndSendMedia(result.assets[0].uri, 'file', result.assets[0].name);
-      }
-    } catch (error) {
-      console.error('Error picking file:', error);
-    }
+    Alert.alert(
+      'Funcionalidade Indisponível',
+      'O envio de documentos será disponibilizado em breve.'
+    );
   };
 
   // Upload media and send message
