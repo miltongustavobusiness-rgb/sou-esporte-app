@@ -28,6 +28,12 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const DELETE_BUTTON_WIDTH = 80;
 
+// Card height: padding (16*2) + image (56) + spacing = ~88px
+// Show 2 full cards + half of third = 2.5 * 88 = 220px + margins
+const CARD_HEIGHT = 88;
+const CARD_MARGIN = 8;
+const SECTION_MAX_HEIGHT = (CARD_HEIGHT + CARD_MARGIN) * 2.5;
+
 interface Group {
   id: number;
   name: string;
@@ -390,15 +396,25 @@ export default function MyGroupsScreen() {
               <Text style={styles.emptySectionText}>Você ainda não criou nenhum grupo</Text>
             </View>
           ) : (
-            myGroups.map(group => (
-              <SwipeableGroupCard
-                key={group.id}
-                group={group}
-                onPress={() => handleGroupPress(group)}
-                onDelete={() => handleDeleteGroup(group)}
-                canDelete={group.role === 'owner'}
-              />
-            ))
+            <ScrollView 
+              style={[
+                styles.sectionScrollView,
+                // Only apply max height if more than 2 groups
+                myGroups.length > 2 && { maxHeight: SECTION_MAX_HEIGHT }
+              ]}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={myGroups.length > 2}
+            >
+              {myGroups.map(group => (
+                <SwipeableGroupCard
+                  key={group.id}
+                  group={group}
+                  onPress={() => handleGroupPress(group)}
+                  onDelete={() => handleDeleteGroup(group)}
+                  canDelete={group.role === 'owner'}
+                />
+              ))}
+            </ScrollView>
           )}
         </View>
 
@@ -417,15 +433,25 @@ export default function MyGroupsScreen() {
               <Text style={styles.emptySectionText}>Você ainda não participa de nenhum grupo</Text>
             </View>
           ) : (
-            participatingGroups.map(group => (
-              <SwipeableGroupCard
-                key={group.id}
-                group={group}
-                onPress={() => handleGroupPress(group)}
-                onDelete={() => {}}
-                canDelete={false}
-              />
-            ))
+            <ScrollView 
+              style={[
+                styles.sectionScrollView,
+                // Only apply max height if more than 2 groups
+                participatingGroups.length > 2 && { maxHeight: SECTION_MAX_HEIGHT }
+              ]}
+              nestedScrollEnabled={true}
+              showsVerticalScrollIndicator={participatingGroups.length > 2}
+            >
+              {participatingGroups.map(group => (
+                <SwipeableGroupCard
+                  key={group.id}
+                  group={group}
+                  onPress={() => handleGroupPress(group)}
+                  onDelete={() => {}}
+                  canDelete={false}
+                />
+              ))}
+            </ScrollView>
           )}
         </View>
       </ScrollView>
@@ -545,6 +571,10 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginBottom: SPACING.sm,
     fontStyle: 'italic',
+  },
+  sectionScrollView: {
+    // Default: no max height, shows all cards
+    // Max height applied dynamically when > 2 groups
   },
   emptySection: {
     backgroundColor: COLORS.surface,
