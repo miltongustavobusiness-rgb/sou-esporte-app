@@ -3005,14 +3005,24 @@ export async function createGroup(group: InsertGroup): Promise<number> {
   const groupId = result[0].insertId;
   console.log('[db.createGroup] Group inserted with ID:', groupId);
   
-  // Add owner as member
+  // Add owner as member - use raw SQL to avoid schema mismatch issues
   console.log('[db.createGroup] Adding owner as member...');
-  await db.insert(groupMembers).values({
-    groupId,
-    userId: group.ownerId,
-    role: 'owner',
-    status: 'active',
-  });
+  try {
+    // Try with canCreateTraining column first (newer schema)
+    await db.insert(groupMembers).values({
+      groupId,
+      userId: group.ownerId,
+      role: 'owner',
+      status: 'active',
+      canCreateTraining: true, // Owner can create trainings
+    });
+  } catch (memberError: any) {
+    console.log('[db.createGroup] First insert attempt failed, trying without canCreateTraining...');
+    // If that fails, try with raw SQL for older schema without canCreateTraining
+    await db.execute(
+      sql`INSERT INTO group_members (groupId, userId, role, status, joinedAt, updatedAt) VALUES (${groupId}, ${group.ownerId}, 'owner', 'active', NOW(), NOW())`
+    );
+  }
   console.log('[db.createGroup] Owner added as member');
   
   // Update member count
