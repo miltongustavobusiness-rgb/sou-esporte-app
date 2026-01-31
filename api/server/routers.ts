@@ -1665,12 +1665,12 @@ export const appRouter = router({
       .input(z.object({
         userId: z.number(),
         name: z.string().min(3).max(100),
-        description: z.string().max(1000).optional(),
+        description: z.string().max(1000).optional().nullable(),
         privacy: z.enum(['public', 'private']).default('public'),
         groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'funcional', 'caminhada_trail', 'yoga', 'lutas', 'other']).default('running'),
-        city: z.string().optional(),
-        state: z.string().optional(),
-        meetingPoint: z.string().optional(),
+        city: z.string().optional().nullable(),
+        state: z.string().optional().nullable(),
+        meetingPoint: z.string().optional().nullable(),
         requiresApproval: z.boolean().default(false),
       }))
       .mutation(async ({ input }) => {
@@ -1679,20 +1679,30 @@ export const appRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
         }
         
-        const { userId, requiresApproval, ...groupData } = input;
+        // Build group data object with only defined fields
+        const groupInsertData: any = {
+          name: input.name,
+          privacy: input.privacy || 'public',
+          groupType: input.groupType || 'running',
+          requiresApproval: input.requiresApproval ?? false,
+          ownerId: input.userId,
+        };
         
-        // Create group with proper data structure
-        const groupId = await db.createGroup({
-          name: groupData.name,
-          description: groupData.description || null,
-          privacy: groupData.privacy,
-          groupType: groupData.groupType,
-          city: groupData.city || null,
-          state: groupData.state || null,
-          meetingPoint: groupData.meetingPoint || null,
-          requiresApproval: requiresApproval || false,
-          ownerId: userId,
-        });
+        // Only add optional fields if they have values
+        if (input.description && input.description.trim()) {
+          groupInsertData.description = input.description.trim();
+        }
+        if (input.city && input.city.trim()) {
+          groupInsertData.city = input.city.trim();
+        }
+        if (input.state && input.state.trim()) {
+          groupInsertData.state = input.state.trim();
+        }
+        if (input.meetingPoint && input.meetingPoint.trim()) {
+          groupInsertData.meetingPoint = input.meetingPoint.trim();
+        }
+        
+        const groupId = await db.createGroup(groupInsertData);
         
         return { success: true, groupId };
       }),
