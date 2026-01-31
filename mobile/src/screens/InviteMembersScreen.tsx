@@ -182,12 +182,64 @@ export default function InviteMembersScreen() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Título do Grupo */}
-        <View style={styles.groupInfo}>
-          <Ionicons name="people-circle-outline" size={60} color="#00ff88" />
-          <Text style={styles.groupName}>{groupName}</Text>
-          <Text style={styles.groupSubtitle}>Convide amigos para participar</Text>
+        {/* Pessoas que você segue - MOVED TO TOP */}
+        <View style={styles.followingSection}>
+          <Text style={styles.sectionTitle}>Pessoas que você segue</Text>
+          {loadingFollowing ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color="#84CC16" />
+            </View>
+          ) : following.length === 0 ? (
+            <View style={styles.emptyFollowing}>
+              <Ionicons name="people-outline" size={40} color="#64748B" />
+              <Text style={styles.emptyFollowingText}>Você ainda não segue ninguém</Text>
+            </View>
+          ) : (
+            <View style={styles.followingList}>
+              {following.slice(0, 10).map((person) => (
+                <View key={person.id} style={styles.followingItem}>
+                  {person.profilePhoto ? (
+                    <Image source={{ uri: person.profilePhoto }} style={styles.followingAvatar} />
+                  ) : (
+                    <View style={[styles.followingAvatar, styles.followingAvatarPlaceholder]}>
+                      <Ionicons name="person" size={20} color="#64748B" />
+                    </View>
+                  )}
+                  <View style={styles.followingInfo}>
+                    <Text style={styles.followingName}>{person.name}</Text>
+                    <Text style={styles.followingUsername}>@{person.username}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.inviteButton, person.invited && styles.inviteButtonDisabled]}
+                    onPress={() => !person.invited && handleInviteUser(person.id)}
+                    disabled={person.invited || invitingUser === person.id}
+                  >
+                    {invitingUser === person.id ? (
+                      <ActivityIndicator size="small" color="#84CC16" />
+                    ) : (
+                      <Text style={[styles.inviteButtonText, person.invited && styles.inviteButtonTextDisabled]}>
+                        {person.invited ? 'Convidado' : 'Convidar'}
+                      </Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              ))}
+              {following.length > 10 && (
+                <Text style={styles.moreFollowing}>+{following.length - 10} pessoas</Text>
+              )}
+            </View>
+          )}
         </View>
+
+        {/* Importar Contatos */}
+        <TouchableOpacity style={styles.importButton} onPress={handleImportContacts}>
+          <Ionicons name="people-outline" size={24} color="#84CC16" />
+          <View style={styles.importTextContainer}>
+            <Text style={styles.importTitle}>Importar Contatos</Text>
+            <Text style={styles.importSubtitle}>Convide amigos da sua lista de contatos</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#64748B" />
+        </TouchableOpacity>
 
         {/* QR Code Section */}
         <View style={styles.qrSection}>
@@ -195,7 +247,7 @@ export default function InviteMembersScreen() {
           <View style={styles.qrContainer}>
             {/* Placeholder para QR Code - usar biblioteca react-native-qrcode-svg */}
             <View style={styles.qrPlaceholder}>
-              <Ionicons name="qr-code-outline" size={120} color="#00ff88" />
+              <Ionicons name="qr-code-outline" size={120} color="#84CC16" />
             </View>
             <Text style={styles.qrHint}>
               Mostre este QR Code para que outros escaneiem e entrem no grupo
@@ -217,7 +269,7 @@ export default function InviteMembersScreen() {
               <Ionicons 
                 name={copied ? "checkmark" : "copy-outline"} 
                 size={20} 
-                color={copied ? "#0a1628" : "#00ff88"} 
+                color={copied ? "#0F172A" : "#84CC16"} 
               />
             </TouchableOpacity>
           </View>
@@ -226,95 +278,30 @@ export default function InviteMembersScreen() {
           )}
         </View>
 
-        {/* Opções de Compartilhamento */}
+        {/* Opções de Compartilhamento - CLEAN STYLE WITHOUT BACKGROUNDS */}
         <View style={styles.shareSection}>
           <Text style={styles.sectionTitle}>Compartilhar via</Text>
           
           <View style={styles.shareOptions}>
-            {/* WhatsApp */}
+            {/* WhatsApp - Clean style */}
             <TouchableOpacity style={styles.shareOption} onPress={handleShareWhatsApp}>
-              <View style={[styles.shareIconContainer, { backgroundColor: '#25D366' }]}>
-                <Ionicons name="logo-whatsapp" size={28} color="#fff" />
-              </View>
+              <Ionicons name="logo-whatsapp" size={32} color="#25D366" />
               <Text style={styles.shareLabel}>WhatsApp</Text>
             </TouchableOpacity>
 
-            {/* Telegram */}
+            {/* Telegram - Clean style */}
             <TouchableOpacity style={styles.shareOption} onPress={handleShareTelegram}>
-              <View style={[styles.shareIconContainer, { backgroundColor: '#0088cc' }]}>
-                <Ionicons name="paper-plane" size={28} color="#fff" />
-              </View>
+              <Ionicons name="paper-plane" size={32} color="#0088cc" />
               <Text style={styles.shareLabel}>Telegram</Text>
             </TouchableOpacity>
 
-            {/* Mais opções */}
+            {/* Mais opções - Clean style */}
             <TouchableOpacity style={styles.shareOption} onPress={handleShareGeneral}>
-              <View style={[styles.shareIconContainer, { backgroundColor: '#666' }]}>
-                <Ionicons name="share-social-outline" size={28} color="#fff" />
-              </View>
+              <Ionicons name="share-social-outline" size={32} color="#94A3B8" />
               <Text style={styles.shareLabel}>Mais</Text>
             </TouchableOpacity>
           </View>
         </View>
-
-        {/* Pessoas que você segue */}
-        <View style={styles.followingSection}>
-          <Text style={styles.sectionTitle}>Pessoas que você segue</Text>
-          {loadingFollowing ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color="#00ff88" />
-            </View>
-          ) : following.length === 0 ? (
-            <View style={styles.emptyFollowing}>
-              <Ionicons name="people-outline" size={40} color="#666" />
-              <Text style={styles.emptyFollowingText}>Você ainda não segue ninguém</Text>
-            </View>
-          ) : (
-            <View style={styles.followingList}>
-              {following.slice(0, 10).map((person) => (
-                <View key={person.id} style={styles.followingItem}>
-                  {person.profilePhoto ? (
-                    <Image source={{ uri: person.profilePhoto }} style={styles.followingAvatar} />
-                  ) : (
-                    <View style={[styles.followingAvatar, styles.followingAvatarPlaceholder]}>
-                      <Ionicons name="person" size={20} color="#666" />
-                    </View>
-                  )}
-                  <View style={styles.followingInfo}>
-                    <Text style={styles.followingName}>{person.name}</Text>
-                    <Text style={styles.followingUsername}>@{person.username}</Text>
-                  </View>
-                  <TouchableOpacity
-                    style={[styles.inviteButton, person.invited && styles.inviteButtonDisabled]}
-                    onPress={() => !person.invited && handleInviteUser(person.id)}
-                    disabled={person.invited || invitingUser === person.id}
-                  >
-                    {invitingUser === person.id ? (
-                      <ActivityIndicator size="small" color="#00ff88" />
-                    ) : (
-                      <Text style={[styles.inviteButtonText, person.invited && styles.inviteButtonTextDisabled]}>
-                        {person.invited ? 'Convidado' : 'Convidar'}
-                      </Text>
-                    )}
-                  </TouchableOpacity>
-                </View>
-              ))}
-              {following.length > 10 && (
-                <Text style={styles.moreFollowing}>+{following.length - 10} pessoas</Text>
-              )}
-            </View>
-          )}
-        </View>
-
-        {/* Importar Contatos */}
-        <TouchableOpacity style={styles.importButton} onPress={handleImportContacts}>
-          <Ionicons name="people-outline" size={24} color="#00ff88" />
-          <View style={styles.importTextContainer}>
-            <Text style={styles.importTitle}>Importar Contatos</Text>
-            <Text style={styles.importSubtitle}>Convide amigos da sua lista de contatos</Text>
-          </View>
-          <Ionicons name="chevron-forward" size={20} color="#666" />
-        </TouchableOpacity>
 
         {/* Dicas */}
         <View style={styles.tipsSection}>
@@ -339,7 +326,7 @@ export default function InviteMembersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a1628',
+    backgroundColor: '#0F172A',
   },
   header: {
     flexDirection: 'row',
@@ -348,7 +335,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#1a2a44',
+    borderBottomColor: '#1E293B',
   },
   backButton: {
     padding: 8,
@@ -356,152 +343,21 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
+    color: '#F8FAFC',
   },
   content: {
     flex: 1,
     paddingHorizontal: 16,
   },
-  groupInfo: {
-    alignItems: 'center',
-    paddingVertical: 24,
-  },
-  groupName: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#fff',
-    marginTop: 12,
-  },
-  groupSubtitle: {
-    fontSize: 14,
-    color: '#888',
-    marginTop: 4,
-  },
-  qrSection: {
-    marginTop: 8,
-  },
   sectionTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#fff',
+    color: '#F8FAFC',
     marginBottom: 12,
   },
-  qrContainer: {
-    backgroundColor: '#1a2a44',
-    borderRadius: 16,
-    padding: 24,
-    alignItems: 'center',
-  },
-  qrPlaceholder: {
-    width: 160,
-    height: 160,
-    backgroundColor: '#0a1628',
-    borderRadius: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  qrHint: {
-    color: '#888',
-    fontSize: 13,
-    textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 20,
-  },
-  linkSection: {
-    marginTop: 24,
-  },
-  linkContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a2a44',
-    borderRadius: 12,
-    paddingLeft: 16,
-    paddingRight: 4,
-    paddingVertical: 4,
-  },
-  linkText: {
-    flex: 1,
-    color: '#00ff88',
-    fontSize: 14,
-  },
-  copyButton: {
-    backgroundColor: '#0a1628',
-    padding: 12,
-    borderRadius: 8,
-  },
-  copyButtonSuccess: {
-    backgroundColor: '#00ff88',
-  },
-  copiedText: {
-    color: '#00ff88',
-    fontSize: 12,
-    marginTop: 8,
-    textAlign: 'center',
-  },
-  shareSection: {
-    marginTop: 24,
-  },
-  shareOptions: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-  },
-  shareOption: {
-    alignItems: 'center',
-  },
-  shareIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  shareLabel: {
-    color: '#fff',
-    fontSize: 12,
-    marginTop: 8,
-  },
-  importButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#1a2a44',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 24,
-  },
-  importTextContainer: {
-    flex: 1,
-    marginLeft: 12,
-  },
-  importTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  importSubtitle: {
-    color: '#888',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  tipsSection: {
-    marginTop: 24,
-    backgroundColor: '#1a2a44',
-    borderRadius: 12,
-    padding: 16,
-  },
-  tipsTitle: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  tipText: {
-    color: '#888',
-    fontSize: 13,
-    marginBottom: 8,
-    lineHeight: 18,
-  },
+  // Following section - NOW AT TOP
   followingSection: {
-    marginTop: 24,
+    marginTop: 16,
   },
   loadingContainer: {
     padding: 20,
@@ -510,25 +366,28 @@ const styles = StyleSheet.create({
   emptyFollowing: {
     alignItems: 'center',
     padding: 24,
-    backgroundColor: '#1a2a44',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   emptyFollowingText: {
-    color: '#888',
+    color: '#94A3B8',
     fontSize: 14,
     marginTop: 12,
   },
   followingList: {
-    backgroundColor: '#1a2a44',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
-    padding: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   followingItem: {
     flexDirection: 'row',
     alignItems: 'center',
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#0a1628',
+    borderBottomColor: '#334155',
   },
   followingAvatar: {
     width: 44,
@@ -536,7 +395,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
   },
   followingAvatarPlaceholder: {
-    backgroundColor: '#0a1628',
+    backgroundColor: '#334155',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -545,17 +404,17 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   followingName: {
-    color: '#fff',
+    color: '#F8FAFC',
     fontSize: 15,
     fontWeight: '600',
   },
   followingUsername: {
-    color: '#888',
+    color: '#94A3B8',
     fontSize: 13,
     marginTop: 2,
   },
   inviteButton: {
-    backgroundColor: '#00ff88',
+    backgroundColor: '#84CC16',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
@@ -563,22 +422,146 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   inviteButtonDisabled: {
-    backgroundColor: '#1a2a44',
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: '#334155',
   },
   inviteButtonText: {
-    color: '#0a1628',
+    color: '#0F172A',
     fontSize: 13,
     fontWeight: '600',
   },
   inviteButtonTextDisabled: {
-    color: '#888',
+    color: '#94A3B8',
   },
   moreFollowing: {
-    color: '#888',
+    color: '#94A3B8',
     fontSize: 13,
     textAlign: 'center',
     padding: 12,
+  },
+  // Import contacts
+  importButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    padding: 16,
+    borderRadius: 12,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  importTextContainer: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  importTitle: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  importSubtitle: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  // QR Section
+  qrSection: {
+    marginTop: 24,
+  },
+  qrContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  qrPlaceholder: {
+    width: 160,
+    height: 160,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrHint: {
+    color: '#94A3B8',
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 16,
+    paddingHorizontal: 20,
+  },
+  // Link section
+  linkSection: {
+    marginTop: 24,
+  },
+  linkContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    paddingLeft: 16,
+    paddingRight: 4,
+    paddingVertical: 4,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  linkText: {
+    flex: 1,
+    color: '#84CC16',
+    fontSize: 14,
+  },
+  copyButton: {
+    padding: 12,
+    borderRadius: 8,
+  },
+  copyButtonSuccess: {
+    backgroundColor: '#84CC16',
+  },
+  copiedText: {
+    color: '#84CC16',
+    fontSize: 12,
+    marginTop: 8,
+    textAlign: 'center',
+  },
+  // Share section - CLEAN STYLE
+  shareSection: {
+    marginTop: 24,
+  },
+  shareOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 8,
+  },
+  shareOption: {
+    alignItems: 'center',
+    padding: 12,
+  },
+  shareLabel: {
+    color: '#F8FAFC',
+    fontSize: 12,
+    marginTop: 8,
+  },
+  // Tips section
+  tipsSection: {
+    marginTop: 24,
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#334155',
+  },
+  tipsTitle: {
+    color: '#F8FAFC',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+  },
+  tipText: {
+    color: '#94A3B8',
+    fontSize: 13,
+    marginBottom: 8,
+    lineHeight: 18,
   },
 });
