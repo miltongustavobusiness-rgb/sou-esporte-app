@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,10 @@ import {
   RefreshControl,
   ActivityIndicator,
   Image,
+  Alert,
+  Animated,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,8 +21,12 @@ import { RootStackParamList } from '../types';
 import { COLORS, SPACING, RADIUS } from '../constants/theme';
 import { api } from '../services/api';
 import { useApp } from '../contexts/AppContext';
+import { apiRequest } from '../config/api';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const DELETE_BUTTON_WIDTH = 80;
 
 interface Group {
   id: number;
@@ -57,43 +65,150 @@ const RoleBadge = ({ role }: { role: string }) => {
   );
 };
 
-// Componente de card do grupo
-const GroupCard = ({ group, onPress }: { group: Group; onPress: () => void }) => {
+// Componente de card do grupo com swipe-to-delete
+const SwipeableGroupCard = ({ 
+  group, 
+  onPress, 
+  onDelete,
+  canDelete 
+}: { 
+  group: Group; 
+  onPress: () => void;
+  onDelete: () => void;
+  canDelete: boolean;
+}) => {
+  const translateX = useRef(new Animated.Value(0)).current;
+  const [isOpen, setIsOpen] = useState(false);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => canDelete,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return canDelete && Math.abs(gestureState.dx) > 10 && Math.abs(gestureState.dy) < 10;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (!canDelete) return;
+        
+        // Only allow swipe left (negative dx)
+        if (gestureState.dx < 0) {
+          const newValue = Math.max(gestureState.dx, -DELETE_BUTTON_WIDTH);
+          translateX.setValue(newValue);
+        } else if (isOpen) {
+          // Allow swipe right to close
+          const newValue = Math.min(gestureState.dx - DELETE_BUTTON_WIDTH, 0);
+          translateX.setValue(newValue);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (!canDelete) return;
+        
+        // If swiped more than half the button width, open it
+        if (gestureState.dx < -DELETE_BUTTON_WIDTH / 2) {
+          Animated.spring(translateX, {
+            toValue: -DELETE_BUTTON_WIDTH,
+            useNativeDriver: true,
+            friction: 8,
+          }).start();
+          setIsOpen(true);
+        } else {
+          // Close the swipe
+          Animated.spring(translateX, {
+            toValue: 0,
+            useNativeDriver: true,
+            friction: 8,
+          }).start();
+          setIsOpen(false);
+        }
+      },
+    })
+  ).current;
+
+  const closeSwipe = () => {
+    Animated.spring(translateX, {
+      toValue: 0,
+      useNativeDriver: true,
+      friction: 8,
+    }).start();
+    setIsOpen(false);
+  };
+
+  const handlePress = () => {
+    if (isOpen) {
+      closeSwipe();
+    } else {
+      onPress();
+    }
+  };
+
+  const handleDelete = () => {
+    closeSwipe();
+    onDelete();
+  };
+
   return (
-    <TouchableOpacity style={styles.groupCard} onPress={onPress} activeOpacity={0.7}>
-      {/* Imagem do grupo */}
-      <View style={styles.groupImageContainer}>
-        {group.logoUrl ? (
-          <Image source={{ uri: group.logoUrl }} style={styles.groupImage} />
-        ) : (
-          <View style={styles.groupImagePlaceholder}>
-            <Ionicons name="people" size={28} color={COLORS.textSecondary} />
-          </View>
-        )}
-      </View>
-
-      {/* Informações do grupo */}
-      <View style={styles.groupInfo}>
-        <View style={styles.groupHeader}>
-          <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
-          <RoleBadge role={group.role} />
+    <View style={styles.swipeContainer}>
+      {/* Delete button behind the card */}
+      {canDelete && (
+        <View style={styles.deleteButtonContainer}>
+          <TouchableOpacity 
+            style={styles.deleteButton} 
+            onPress={handleDelete}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="trash-outline" size={24} color="#fff" />
+            <Text style={styles.deleteButtonText}>Excluir</Text>
+          </TouchableOpacity>
         </View>
-        
-        {group.city && (
-          <View style={styles.infoRow}>
-            <Ionicons name="location-outline" size={14} color={COLORS.textSecondary} />
-            <Text style={styles.infoText}>{group.city}{group.state ? `, ${group.state}` : ''}</Text>
+      )}
+      
+      {/* Swipeable card */}
+      <Animated.View
+        style={[
+          styles.groupCardAnimated,
+          { transform: [{ translateX }] },
+        ]}
+        {...panResponder.panHandlers}
+      >
+        <TouchableOpacity 
+          style={styles.groupCard} 
+          onPress={handlePress} 
+          activeOpacity={0.7}
+        >
+          {/* Imagem do grupo */}
+          <View style={styles.groupImageContainer}>
+            {group.logoUrl ? (
+              <Image source={{ uri: group.logoUrl }} style={styles.groupImage} />
+            ) : (
+              <View style={styles.groupImagePlaceholder}>
+                <Ionicons name="people" size={28} color={COLORS.textSecondary} />
+              </View>
+            )}
           </View>
-        )}
-        
-        <View style={styles.infoRow}>
-          <Ionicons name="people-outline" size={14} color={COLORS.textSecondary} />
-          <Text style={styles.infoText}>{group.memberCount || 1} membros</Text>
-        </View>
-      </View>
 
-      <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-    </TouchableOpacity>
+          {/* Informações do grupo */}
+          <View style={styles.groupInfo}>
+            <View style={styles.groupHeader}>
+              <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
+              <RoleBadge role={group.role} />
+            </View>
+            
+            {group.city && (
+              <View style={styles.infoRow}>
+                <Ionicons name="location-outline" size={14} color={COLORS.textSecondary} />
+                <Text style={styles.infoText}>{group.city}{group.state ? `, ${group.state}` : ''}</Text>
+              </View>
+            )}
+            
+            <View style={styles.infoRow}>
+              <Ionicons name="people-outline" size={14} color={COLORS.textSecondary} />
+              <Text style={styles.infoText}>{group.memberCount || 1} membros</Text>
+            </View>
+          </View>
+
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
+        </TouchableOpacity>
+      </Animated.View>
+    </View>
   );
 };
 
@@ -103,6 +218,7 @@ export default function MyGroupsScreen() {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadGroups = useCallback(async () => {
     try {
@@ -147,6 +263,45 @@ export default function MyGroupsScreen() {
     navigation.navigate('CreateGroup');
   };
 
+  const handleDeleteGroup = (group: Group) => {
+    Alert.alert(
+      'Excluir Grupo',
+      `Tem certeza que deseja excluir o grupo "${group.name}"?\n\nEsta ação é IRREVERSÍVEL. Todos os dados do grupo, incluindo membros, posts, chat e treinos serão permanentemente excluídos.\n\nNão será possível recuperar o grupo após a exclusão.`,
+      [
+        {
+          text: 'Cancelar',
+          style: 'cancel',
+        },
+        {
+          text: 'Excluir Grupo',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setDeleting(true);
+              
+              // Call API to delete group
+              await apiRequest('deleteGroup', {
+                userId: user?.id,
+                groupId: group.id,
+              });
+              
+              // Remove from local state
+              setGroups(prev => prev.filter(g => g.id !== group.id));
+              
+              Alert.alert('Sucesso', 'Grupo excluído com sucesso.');
+            } catch (error: any) {
+              console.error('Error deleting group:', error);
+              Alert.alert('Erro', error.message || 'Não foi possível excluir o grupo. Tente novamente.');
+            } finally {
+              setDeleting(false);
+            }
+          },
+        },
+      ],
+      { cancelable: true }
+    );
+  };
+
   // Separar grupos: Meus Grupos (owner/admin) e Grupos que Participo (member/moderator)
   const myGroups = groups.filter(g => g.role === 'owner' || g.role === 'admin');
   const participatingGroups = groups.filter(g => g.role === 'member' || g.role === 'moderator');
@@ -185,6 +340,14 @@ export default function MyGroupsScreen() {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Deleting overlay */}
+      {deleting && (
+        <View style={styles.deletingOverlay}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+          <Text style={styles.deletingText}>Excluindo grupo...</Text>
+        </View>
+      )}
+
       <ScrollView
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -214,6 +377,13 @@ export default function MyGroupsScreen() {
             </View>
           </View>
           
+          {/* Hint for swipe to delete */}
+          {myGroups.length > 0 && (
+            <Text style={styles.swipeHint}>
+              <Ionicons name="arrow-back" size={12} color={COLORS.textSecondary} /> Deslize para a esquerda para excluir
+            </Text>
+          )}
+          
           {myGroups.length === 0 ? (
             <View style={styles.emptySection}>
               <Ionicons name="people-outline" size={32} color={COLORS.textSecondary} />
@@ -221,10 +391,12 @@ export default function MyGroupsScreen() {
             </View>
           ) : (
             myGroups.map(group => (
-              <GroupCard
+              <SwipeableGroupCard
                 key={group.id}
                 group={group}
                 onPress={() => handleGroupPress(group)}
+                onDelete={() => handleDeleteGroup(group)}
+                canDelete={group.role === 'owner'}
               />
             ))
           )}
@@ -246,10 +418,12 @@ export default function MyGroupsScreen() {
             </View>
           ) : (
             participatingGroups.map(group => (
-              <GroupCard
+              <SwipeableGroupCard
                 key={group.id}
                 group={group}
                 onPress={() => handleGroupPress(group)}
+                onDelete={() => {}}
+                canDelete={false}
               />
             ))
           )}
@@ -295,6 +469,23 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
   },
+  deletingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+  },
+  deletingText: {
+    marginTop: SPACING.md,
+    fontSize: 16,
+    color: '#fff',
+    fontWeight: '600',
+  },
   scrollView: {
     flex: 1,
   },
@@ -330,7 +521,7 @@ const styles = StyleSheet.create({
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: SPACING.md,
+    marginBottom: SPACING.sm,
   },
   sectionTitle: {
     fontSize: 16,
@@ -349,6 +540,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
+  swipeHint: {
+    fontSize: 11,
+    color: COLORS.textSecondary,
+    marginBottom: SPACING.sm,
+    fontStyle: 'italic',
+  },
   emptySection: {
     backgroundColor: COLORS.surface,
     padding: SPACING.xl,
@@ -362,13 +559,45 @@ const styles = StyleSheet.create({
     marginTop: SPACING.sm,
     textAlign: 'center',
   },
+  swipeContainer: {
+    marginBottom: SPACING.sm,
+    overflow: 'hidden',
+    borderRadius: RADIUS.lg,
+  },
+  deleteButtonContainer: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: DELETE_BUTTON_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  deleteButton: {
+    width: DELETE_BUTTON_WIDTH,
+    height: '100%',
+    backgroundColor: '#ef4444',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderTopRightRadius: RADIUS.lg,
+    borderBottomRightRadius: RADIUS.lg,
+  },
+  deleteButtonText: {
+    color: '#fff',
+    fontSize: 11,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  groupCardAnimated: {
+    backgroundColor: COLORS.surface,
+    borderRadius: RADIUS.lg,
+  },
   groupCard: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
     borderRadius: RADIUS.lg,
-    marginBottom: SPACING.sm,
   },
   groupImageContainer: {
     marginRight: SPACING.md,
