@@ -38,6 +38,13 @@ const DISTANCIAS_CORRIDA = ['5k', '10k', '15k', '21k', '42k'];
 const DISTANCIAS_BIKE = ['20km', '40km', '60km', '80km', '100km+'];
 const DISTANCIAS_NATACAO = ['500m', '1000m', '1500m', '2000m', '3000m+'];
 
+// Estados brasileiros (UF)
+const ESTADOS_BRASIL = [
+  'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 'MA',
+  'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 'RJ', 'RN',
+  'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
+];
+
 // Tipos de grupo
 type TipoGrupo = 'gratuito' | 'pago';
 
@@ -57,6 +64,7 @@ export default function CreateGroupScreen() {
   const [modalidade, setModalidade] = useState('');
   const [distanciasSelecionadas, setDistanciasSelecionadas] = useState<string[]>([]);
   const [cidade, setCidade] = useState('');
+  const [estado, setEstado] = useState('');
   const [bairro, setBairro] = useState('');
   const [visibilidade, setVisibilidade] = useState<'publico' | 'privado'>('publico');
   const [fotoCapa, setFotoCapa] = useState<string | null>(null);
@@ -115,14 +123,20 @@ export default function CreateGroupScreen() {
 
         if (addresses && addresses.length > 0) {
           const address = addresses[0];
-          // Preenche cidade e bairro automaticamente
+          // Preenche cidade, estado e bairro automaticamente
           const cidadeObtida = address.city || address.subregion || address.region || '';
           const bairroObtido = address.district || address.street || address.name || '';
+          // Tenta obter a sigla do estado (UF)
+          const estadoObtido = address.region ? address.region.substring(0, 2).toUpperCase() : '';
           
           if (cidadeObtida) setCidade(cidadeObtida);
           if (bairroObtido) setBairro(bairroObtido);
+          // Verifica se o estado obtido é uma UF válida
+          if (estadoObtido && ESTADOS_BRASIL.includes(estadoObtido)) {
+            setEstado(estadoObtido);
+          }
           
-          console.log('Localização obtida:', { cidade: cidadeObtida, bairro: bairroObtido });
+          console.log('Localização obtida:', { cidade: cidadeObtida, estado: estadoObtido, bairro: bairroObtido });
         }
       }
     } catch (error: any) {
@@ -246,6 +260,7 @@ export default function CreateGroupScreen() {
         privacy: visibilidade === 'privado' ? 'private' : 'public',
         groupType: groupTypeMap[modalidade] || 'other',
         city: cidade.trim(),
+        state: estado || undefined, // Sigla do estado (UF - 2 letras)
         meetingPoint: bairro.trim() || undefined, // Bairro como ponto de encontro
         requiresApproval: aprovarMembrosManualmente,
       });
@@ -597,6 +612,34 @@ export default function CreateGroupScreen() {
             value={cidade}
             onChangeText={setCidade}
           />
+          {/* Seletor de Estado (UF) */}
+          <View style={styles.estadoContainer}>
+            <Text style={styles.estadoLabel}>Estado (UF)</Text>
+            <ScrollView 
+              horizontal 
+              showsHorizontalScrollIndicator={false}
+              style={styles.estadoScroll}
+              contentContainerStyle={styles.estadoScrollContent}
+            >
+              {ESTADOS_BRASIL.map((uf) => (
+                <TouchableOpacity
+                  key={uf}
+                  style={[
+                    styles.estadoChip,
+                    estado === uf && styles.estadoChipSelected
+                  ]}
+                  onPress={() => setEstado(uf)}
+                >
+                  <Text style={[
+                    styles.estadoChipText,
+                    estado === uf && styles.estadoChipTextSelected
+                  ]}>
+                    {uf}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
           <TextInput
             style={[styles.input, { marginTop: 8 }]}
             placeholder="Bairro (opcional)"
@@ -832,6 +875,42 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
+  },
+  // Estilos para seletor de Estado (UF)
+  estadoContainer: {
+    marginTop: 12,
+  },
+  estadoLabel: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginBottom: 8,
+  },
+  estadoScroll: {
+    flexGrow: 0,
+  },
+  estadoScrollContent: {
+    paddingRight: 16,
+  },
+  estadoChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#334155',
+    marginRight: 8,
+    backgroundColor: 'transparent',
+  },
+  estadoChipSelected: {
+    backgroundColor: '#84CC16',
+    borderColor: '#84CC16',
+  },
+  estadoChipText: {
+    fontSize: 14,
+    color: '#94A3B8',
+    fontWeight: '600',
+  },
+  estadoChipTextSelected: {
+    color: '#0F172A',
   },
   // Estilos para Tipo de Grupo
   tipoGrupoRow: {
