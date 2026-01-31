@@ -3136,19 +3136,25 @@ export async function leaveGroup(groupId: number, userId: number): Promise<boole
 }
 
 export async function isGroupMember(groupId: number, userId: number): Promise<boolean> {
-  const db = await getDb();
-  if (!db) return false;
-  
-  const result = await db.select()
-    .from(groupMembers)
-    .where(and(
-      eq(groupMembers.groupId, groupId),
-      eq(groupMembers.userId, userId),
-      eq(groupMembers.status, 'active')
-    ))
-    .limit(1);
-  
-  return result.length > 0;
+  try {
+    const db = await getDb();
+    if (!db) return false;
+    
+    // Use raw SQL to avoid Drizzle issues with enum columns
+    const result = await db.execute(
+      sql`SELECT id FROM group_members 
+          WHERE groupId = ${groupId} 
+          AND userId = ${userId} 
+          AND status = 'active' 
+          LIMIT 1`
+    );
+    
+    const rows = (result as any)[0];
+    return rows && rows.length > 0;
+  } catch (error: any) {
+    console.error('[db.isGroupMember] Error:', error.message);
+    return false;
+  }
 }
 
 
@@ -5109,47 +5115,87 @@ export async function sendModerationEmail(postId: number, authorName: string, co
 
 // Get group membership
 export async function getGroupMembership(groupId: number, userId: number): Promise<GroupMember | null> {
-  const db = await getDb();
-  if (!db) return null;
-  
-  const result = await db.select()
-    .from(groupMembers)
-    .where(and(
-      eq(groupMembers.groupId, groupId),
-      eq(groupMembers.userId, userId),
-      eq(groupMembers.status, 'active')
-    ))
-    .limit(1);
-  
-  return result[0] || null;
+  try {
+    const db = await getDb();
+    if (!db) {
+      console.log('[db.getGroupMembership] Database not available');
+      return null;
+    }
+    
+    console.log(`[db.getGroupMembership] Checking membership for groupId=${groupId}, userId=${userId}`);
+    
+    // Use raw SQL to avoid potential Drizzle issues with enum columns
+    const result = await db.execute(
+      sql`SELECT * FROM group_members 
+          WHERE groupId = ${groupId} 
+          AND userId = ${userId} 
+          AND status = 'active' 
+          LIMIT 1`
+    );
+    
+    const rows = (result as any)[0];
+    if (rows && rows.length > 0) {
+      console.log(`[db.getGroupMembership] Found membership:`, rows[0].role);
+      return rows[0] as GroupMember;
+    }
+    
+    console.log(`[db.getGroupMembership] No membership found`);
+    return null;
+  } catch (error: any) {
+    console.error('[db.getGroupMembership] Error:', error.message);
+    console.error('[db.getGroupMembership] Stack:', error.stack);
+    return null;
+  }
 }
 
 // Get group members with user info
 export async function getGroupMembers(groupId: number): Promise<any[]> {
-  const db = await getDb();
-  if (!db) return [];
-  
-  const result = await db.select({
-    member: groupMembers,
-    user: {
-      id: users.id,
-      name: users.name,
-      username: users.username,
-      photoUrl: users.photoUrl,
-    },
-  })
-  .from(groupMembers)
-  .innerJoin(users, eq(groupMembers.userId, users.id))
-  .where(eq(groupMembers.groupId, groupId))
-  .orderBy(
-    sql`FIELD(${groupMembers.role}, 'owner', 'admin', 'moderator', 'member')`,
-    groupMembers.joinedAt
-  );
-  
-  return result.map(r => ({
-    ...r.member,
-    user: r.user,
-  }));
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    
+    console.log(`[db.getGroupMembers] Getting members for groupId=${groupId}`);
+    
+    // Use raw SQL to avoid Drizzle issues with enum columns
+    const result = await db.execute(
+      sql`SELECT 
+            gm.id, gm.groupId, gm.userId, gm.role, gm.status, 
+            gm.canCreateTraining, gm.notifyPosts, gm.notifyTrainings, gm.notifyChat,
+            gm.joinedAt, gm.updatedAt,
+            u.id as user_id, u.name as user_name, u.username as user_username, u.photoUrl as user_photoUrl
+          FROM group_members gm
+          INNER JOIN users u ON gm.userId = u.id
+          WHERE gm.groupId = ${groupId}
+          ORDER BY FIELD(gm.role, 'owner', 'admin', 'moderator', 'member'), gm.joinedAt`
+    );
+    
+    const rows = (result as any)[0] || [];
+    console.log(`[db.getGroupMembers] Found ${rows.length} members`);
+    
+    return rows.map((r: any) => ({
+      id: r.id,
+      groupId: r.groupId,
+      userId: r.userId,
+      role: r.role,
+      status: r.status,
+      canCreateTraining: r.canCreateTraining,
+      notifyPosts: r.notifyPosts,
+      notifyTrainings: r.notifyTrainings,
+      notifyChat: r.notifyChat,
+      joinedAt: r.joinedAt,
+      updatedAt: r.updatedAt,
+      user: {
+        id: r.user_id,
+        name: r.user_name,
+        username: r.user_username,
+        photoUrl: r.user_photoUrl,
+      },
+    }));
+  } catch (error: any) {
+    console.error('[db.getGroupMembers] Error:', error.message);
+    console.error('[db.getGroupMembers] Stack:', error.stack);
+    return [];
+  }
 }
 
 // Update group member
