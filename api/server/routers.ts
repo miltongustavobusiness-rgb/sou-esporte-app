@@ -1653,20 +1653,29 @@ export const appRouter = router({
         userId: z.number(),
       }))
       .query(async ({ input }) => {
-        console.log('[mobile.getUserGroups] Request for userId:', input.userId);
-        
-        const user = await db.getUserById(input.userId);
-        if (!user) {
-          console.log('[mobile.getUserGroups] User not found:', input.userId);
-          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        try {
+          console.log('[mobile.getUserGroups] Request for userId:', input.userId);
+          
+          const user = await db.getUserById(input.userId);
+          if (!user) {
+            console.log('[mobile.getUserGroups] User not found:', input.userId);
+            throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+          }
+          
+          console.log('[mobile.getUserGroups] User found:', user.name);
+          
+          const groups = await db.getUserGroups(input.userId);
+          console.log('[mobile.getUserGroups] Groups found:', groups?.length || 0);
+          
+          return groups || [];
+        } catch (error: any) {
+          console.error('[mobile.getUserGroups] ERROR:', error.message || error);
+          console.error('[mobile.getUserGroups] Stack:', error.stack);
+          throw new TRPCError({ 
+            code: 'INTERNAL_SERVER_ERROR', 
+            message: `Erro ao buscar grupos: ${error.message || 'Erro desconhecido'}` 
+          });
         }
-        
-        console.log('[mobile.getUserGroups] User found:', user.name);
-        
-        const groups = await db.getUserGroups(input.userId);
-        console.log('[mobile.getUserGroups] Groups found:', groups.length, groups.map(g => ({ id: g.id, name: g.name, role: g.role })));
-        
-        return groups;
       }),
     
     // Create group (mobile)

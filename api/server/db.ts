@@ -3027,36 +3027,44 @@ export async function createGroup(group: InsertGroup): Promise<number> {
 }
 
 export async function getUserGroups(userId: number): Promise<any[]> {
-  console.log('[db.getUserGroups] Getting groups for userId:', userId);
-  
-  const db = await getDb();
-  if (!db) {
-    console.error('[db.getUserGroups] Database not available');
-    return [];
+  try {
+    console.log('[db.getUserGroups] Getting groups for userId:', userId);
+    
+    const db = await getDb();
+    if (!db) {
+      console.error('[db.getUserGroups] Database not available');
+      return [];
+    }
+    
+    console.log('[db.getUserGroups] Database connection OK, executing query...');
+    
+    const result = await db.select({
+      group: groups,
+      membership: groupMembers,
+    })
+    .from(groupMembers)
+    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
+    .where(and(
+      eq(groupMembers.userId, userId),
+      eq(groupMembers.status, 'active'),
+      eq(groups.status, 'active')
+    ));
+    
+    console.log('[db.getUserGroups] Query executed, result count:', result?.length || 0);
+    
+    const mappedResult = result.map(r => ({
+      ...r.group,
+      role: r.membership.role,
+    }));
+    
+    console.log('[db.getUserGroups] Mapped result count:', mappedResult.length);
+    
+    return mappedResult;
+  } catch (error: any) {
+    console.error('[db.getUserGroups] ERROR:', error.message || error);
+    console.error('[db.getUserGroups] Stack:', error.stack);
+    throw error;
   }
-  
-  const result = await db.select({
-    group: groups,
-    membership: groupMembers,
-  })
-  .from(groupMembers)
-  .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-  .where(and(
-    eq(groupMembers.userId, userId),
-    eq(groupMembers.status, 'active'),
-    eq(groups.status, 'active')
-  ));
-  
-  console.log('[db.getUserGroups] Query result count:', result.length);
-  
-  const mappedResult = result.map(r => ({
-    ...r.group,
-    role: r.membership.role,
-  }));
-  
-  console.log('[db.getUserGroups] Returning groups:', mappedResult.map(g => ({ id: g.id, name: g.name, role: g.role })));
-  
-  return mappedResult;
 }
 
 export async function joinGroup(groupId: number, userId: number): Promise<boolean> {
