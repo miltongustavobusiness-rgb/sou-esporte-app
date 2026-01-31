@@ -1628,16 +1628,20 @@ ApiService.prototype.getSavedPosts = async function(limit: number = 50, offset: 
 };
 
 // Groups
-ApiService.prototype.getUserGroups = async function(): Promise<Group[]> {
+ApiService.prototype.getUserGroups = async function(userIdParam?: number): Promise<Group[]> {
   try {
-    console.log('[api.getUserGroups] Starting...');
+    console.log('[api.getUserGroups] Starting with param:', userIdParam);
     
-    // Get userId from stored user data
-    const userData = await AsyncStorage.getItem('@souesporte_user');
-    console.log('[api.getUserGroups] User data from storage:', userData ? 'found' : 'not found');
+    // Use provided userId or get from storage
+    let userId = userIdParam;
     
-    const user = userData ? JSON.parse(userData) : null;
-    const userId = user?.id;
+    if (!userId) {
+      const userData = await AsyncStorage.getItem('@souesporte_user');
+      console.log('[api.getUserGroups] User data from storage:', userData ? 'found' : 'not found');
+      const user = userData ? JSON.parse(userData) : null;
+      userId = user?.id;
+    }
+    
     console.log('[api.getUserGroups] User ID:', userId);
     
     if (!userId) {

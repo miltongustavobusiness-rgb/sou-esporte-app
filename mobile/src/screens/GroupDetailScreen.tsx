@@ -122,35 +122,43 @@ export default function GroupDetailScreen() {
   const canCreateTraining = canManage || membership?.canCreateTraining;
 
   const loadGroupData = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const [groupResult, membershipResult] = await Promise.all([
-        apiRequest('groups.getById', { groupId }),
-        apiRequest('groups.getMembership', { groupId }),
-      ]);
-      setGroup(groupResult);
-      setMembership(membershipResult);
+      // Use mobile route 'getGroup' which returns both group and membership
+      const result = await apiRequest('getGroup', { 
+        userId: user.id,
+        groupId 
+      }, 'query');
+      setGroup(result);
+      setMembership(result.membership);
     } catch (error) {
       console.error('Error loading group:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   const loadTrainings = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const result = await apiRequest('groups.getTrainings', { groupId });
+      const result = await apiRequest('getTrainings', { 
+        userId: user.id,
+        groupId 
+      }, 'query');
       setTrainings(result || []);
     } catch (error) {
       console.error('Error loading trainings:', error);
     }
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   const loadPosts = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const result = await apiRequest('mobileSocial.socialGetFeed', { 
+      // Use getGroupPosts route for group feed
+      const result = await apiRequest('getGroupPosts', { 
+        userId: user.id,
         groupId,
-        userId: user?.id,
         limit: 20,
         offset: 0,
       }, 'query');

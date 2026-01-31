@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
@@ -88,7 +88,7 @@ const GroupCard = ({ group, onPress }: { group: Group; onPress: () => void }) =>
         
         <View style={styles.infoRow}>
           <Ionicons name="people-outline" size={14} color={COLORS.textSecondary} />
-          <Text style={styles.infoText}>{group.memberCount || 0} membros</Text>
+          <Text style={styles.infoText}>{group.memberCount || 1} membros</Text>
         </View>
       </View>
 
@@ -111,7 +111,9 @@ export default function MyGroupsScreen() {
         setGroups([]);
         return;
       }
+      console.log('[MyGroupsScreen] Loading groups for user:', user.id);
       const userGroups = await api.getUserGroups(user.id);
+      console.log('[MyGroupsScreen] Groups loaded:', userGroups?.length || 0);
       setGroups(userGroups || []);
     } catch (error) {
       console.error('Error loading groups:', error);
@@ -145,19 +147,20 @@ export default function MyGroupsScreen() {
     navigation.navigate('CreateGroup');
   };
 
-  // Separar grupos por papel
-  const adminGroups = groups.filter(g => g.role === 'owner' || g.role === 'admin');
-  const memberGroups = groups.filter(g => g.role === 'member' || g.role === 'moderator');
+  // Separar grupos: Meus Grupos (owner/admin) e Grupos que Participo (member/moderator)
+  const myGroups = groups.filter(g => g.role === 'owner' || g.role === 'admin');
+  const participatingGroups = groups.filter(g => g.role === 'member' || g.role === 'moderator');
 
   if (loading) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.header}>
-          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-            <Ionicons name="arrow-back" size={24} color="#fff" />
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Meus Grupos</Text>
-          <View style={{ width: 40 }} />
+        {/* Logo Header */}
+        <View style={styles.logoHeader}>
+          <Image
+            source={require('../assets/logo-sou-esporte.png')}
+            style={styles.logoLarge}
+            resizeMode="contain"
+          />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -169,103 +172,89 @@ export default function MyGroupsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
+      {/* Logo Header - Grande e Centralizado */}
+      <View style={styles.logoHeader}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Meus Grupos</Text>
-        <TouchableOpacity onPress={handleCreateGroup} style={styles.addButton}>
-          <Ionicons name="add" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
+        <Image
+          source={require('../assets/logo-sou-esporte.png')}
+          style={styles.logoLarge}
+          resizeMode="contain"
+        />
+        <View style={{ width: 40 }} />
       </View>
 
-      {groups.length === 0 ? (
-        /* Estado vazio */
-        <View style={styles.emptyContainer}>
-          <View style={styles.emptyIcon}>
-            <Ionicons name="people-outline" size={64} color={COLORS.textSecondary} />
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor={COLORS.primary}
+          />
+        }
+      >
+        {/* Botão Criar Novo Grupo - No topo */}
+        <TouchableOpacity style={styles.createGroupButton} onPress={handleCreateGroup}>
+          <View style={styles.createGroupIcon}>
+            <Ionicons name="add" size={24} color={COLORS.primary} />
           </View>
-          <Text style={styles.emptyTitle}>Nenhum grupo ainda</Text>
-          <Text style={styles.emptySubtitle}>
-            Crie seu próprio grupo ou participe de grupos existentes para treinar com outros atletas!
-          </Text>
-          <TouchableOpacity style={styles.createButton} onPress={handleCreateGroup}>
-            <Ionicons name="add-circle" size={22} color="#0a1628" />
-            <Text style={styles.createButtonText}>Criar Meu Primeiro Grupo</Text>
-          </TouchableOpacity>
-        </View>
-      ) : (
-        /* Lista de grupos */
-        <FlatList
-          data={[{ type: 'content' }]}
-          keyExtractor={() => 'content'}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={COLORS.primary}
-            />
-          }
-          renderItem={() => (
-            <View style={styles.content}>
-              {/* Botão Criar Grupo */}
-              <TouchableOpacity style={styles.createGroupButton} onPress={handleCreateGroup}>
-                <View style={styles.createGroupIcon}>
-                  <Ionicons name="add" size={24} color={COLORS.primary} />
-                </View>
-                <Text style={styles.createGroupText}>Criar Novo Grupo</Text>
-                <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
-              </TouchableOpacity>
-
-              {/* Seção: Grupos que administro */}
-              {adminGroups.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Grupos que administro</Text>
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countText}>{adminGroups.length}</Text>
-                    </View>
-                  </View>
-                  {adminGroups.map(group => (
-                    <GroupCard
-                      key={group.id}
-                      group={group}
-                      onPress={() => handleGroupPress(group)}
-                    />
-                  ))}
-                </View>
-              )}
-
-              {/* Seção: Grupos que participo */}
-              {memberGroups.length > 0 && (
-                <View style={styles.section}>
-                  <View style={styles.sectionHeader}>
-                    <Text style={styles.sectionTitle}>Grupos que participo</Text>
-                    <View style={styles.countBadge}>
-                      <Text style={styles.countText}>{memberGroups.length}</Text>
-                    </View>
-                  </View>
-                  {memberGroups.map(group => (
-                    <GroupCard
-                      key={group.id}
-                      group={group}
-                      onPress={() => handleGroupPress(group)}
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-        />
-      )}
-
-      {/* FAB - Criar Grupo */}
-      {groups.length > 0 && (
-        <TouchableOpacity style={styles.fab} onPress={handleCreateGroup}>
-          <Ionicons name="add" size={28} color="#0a1628" />
+          <Text style={styles.createGroupText}>Criar Novo Grupo</Text>
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
         </TouchableOpacity>
-      )}
+
+        {/* Seção: Meus Grupos */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Meus Grupos</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{myGroups.length}</Text>
+            </View>
+          </View>
+          
+          {myGroups.length === 0 ? (
+            <View style={styles.emptySection}>
+              <Ionicons name="people-outline" size={32} color={COLORS.textSecondary} />
+              <Text style={styles.emptySectionText}>Você ainda não criou nenhum grupo</Text>
+            </View>
+          ) : (
+            myGroups.map(group => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                onPress={() => handleGroupPress(group)}
+              />
+            ))
+          )}
+        </View>
+
+        {/* Seção: Grupos que Participo */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Grupos que Participo</Text>
+            <View style={styles.countBadge}>
+              <Text style={styles.countText}>{participatingGroups.length}</Text>
+            </View>
+          </View>
+          
+          {participatingGroups.length === 0 ? (
+            <View style={styles.emptySection}>
+              <Ionicons name="search-outline" size={32} color={COLORS.textSecondary} />
+              <Text style={styles.emptySectionText}>Você ainda não participa de nenhum grupo</Text>
+            </View>
+          ) : (
+            participatingGroups.map(group => (
+              <GroupCard
+                key={group.id}
+                group={group}
+                onPress={() => handleGroupPress(group)}
+              />
+            ))
+          )}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -275,33 +264,24 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  header: {
+  logoHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.md,
+    paddingVertical: SPACING.lg,
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  logoLarge: {
+    width: 180,
+    height: 60,
   },
   backButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
     backgroundColor: 'rgba(255,255,255,0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#fff',
-  },
-  addButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: 'rgba(163, 230, 53, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -315,7 +295,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
   },
-  content: {
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
     padding: SPACING.md,
   },
   createGroupButton: {
@@ -324,7 +307,7 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.surface,
     padding: SPACING.md,
     borderRadius: RADIUS.lg,
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   createGroupIcon: {
     width: 48,
@@ -342,7 +325,7 @@ const styles = StyleSheet.create({
     color: '#fff',
   },
   section: {
-    marginBottom: SPACING.lg,
+    marginBottom: SPACING.xl,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -350,22 +333,34 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.md,
   },
   sectionTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: COLORS.textSecondary,
-    textTransform: 'uppercase',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#fff',
   },
   countBadge: {
     marginLeft: SPACING.sm,
     backgroundColor: 'rgba(163, 230, 53, 0.2)',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   countText: {
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  emptySection: {
+    backgroundColor: COLORS.surface,
+    padding: SPACING.xl,
+    borderRadius: RADIUS.lg,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptySectionText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginTop: SPACING.sm,
+    textAlign: 'center',
   },
   groupCard: {
     flexDirection: 'row',
@@ -424,64 +419,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textSecondary,
     marginLeft: 4,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: SPACING.xl,
-  },
-  emptyIcon: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: 'rgba(255,255,255,0.05)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: SPACING.lg,
-  },
-  emptyTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#fff',
-    marginBottom: SPACING.sm,
-    textAlign: 'center',
-  },
-  emptySubtitle: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    lineHeight: 20,
-    marginBottom: SPACING.xl,
-  },
-  createButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.primary,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.md,
-    borderRadius: RADIUS.lg,
-  },
-  createButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#0a1628',
-    marginLeft: SPACING.sm,
-  },
-  fab: {
-    position: 'absolute',
-    bottom: 24,
-    right: 24,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    elevation: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
   },
 });
