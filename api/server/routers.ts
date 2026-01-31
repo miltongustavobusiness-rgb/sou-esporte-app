@@ -1977,6 +1977,32 @@ export const appRouter = router({
         return { success: true };
       }),
     
+    // Get group posts (mobile)
+    getGroupPosts: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        limit: z.number().optional().default(20),
+        offset: z.number().optional().default(0),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const membership = await db.getGroupMembership(input.groupId, input.userId);
+        if (!membership) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
+        }
+        
+        return db.getFeedPosts({
+          groupId: input.groupId,
+          limit: input.limit,
+          offset: input.offset,
+        });
+      }),
+    
     // ==================== MOBILE TRAININGS API ====================
     // These routes accept userId as parameter since mobile doesn't use cookie auth
     
