@@ -2913,15 +2913,57 @@ export async function getCommentById(commentId: number): Promise<any | null> {
 }
 
 export async function getGroupById(groupId: number): Promise<any | null> {
-  const db = await getDb();
-  if (!db) return null;
-  
-  const result = await db.select()
-    .from(groups)
-    .where(eq(groups.id, groupId))
-    .limit(1);
-  
-  return result[0] || null;
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    
+    console.log(`[db.getGroupById] Fetching group ${groupId}`);
+    
+    // Use raw SQL to avoid enum serialization issues
+    const result = await db.execute(
+      sql.raw(`SELECT 
+        id, name, description, logoUrl, coverUrl, city, state,
+        privacy, groupType, level, meetingPoint, 
+        allowJoinRequests, requiresApproval, memberCount, postCount,
+        ownerId, status, createdAt, updatedAt
+      FROM \`groups\` WHERE id = ${groupId} LIMIT 1`)
+    );
+    
+    const rows = result[0] as any[];
+    if (!rows || rows.length === 0) return null;
+    
+    const row = rows[0];
+    
+    // Map column names to expected format
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      logoUrl: row.logoUrl,
+      coverUrl: row.coverUrl,
+      coverImageUrl: row.coverUrl, // Alias for frontend compatibility
+      city: row.city,
+      state: row.state,
+      neighborhood: row.neighborhood || null,
+      privacy: row.privacy,
+      visibility: row.privacy, // Alias for frontend compatibility
+      groupType: row.groupType,
+      type: row.groupType, // Alias for frontend compatibility
+      level: row.level,
+      meetingPoint: row.meetingPoint,
+      allowJoinRequests: row.allowJoinRequests === 1,
+      requiresApproval: row.requiresApproval === 1,
+      memberCount: row.memberCount || 0,
+      postCount: row.postCount || 0,
+      ownerId: row.ownerId,
+      status: row.status,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  } catch (error: any) {
+    console.error('[db.getGroupById] Error:', error.message);
+    return null;
+  }
 }
 
 // Funções de moderação
@@ -3122,8 +3164,8 @@ export async function updateGroup(groupId: number, data: {
     if (data.city !== undefined) setClauses.push(`city = '${data.city.replace(/'/g, "''")}'`);
     if (data.neighborhood !== undefined) setClauses.push(`neighborhood = '${data.neighborhood.replace(/'/g, "''")}'`);
     if (data.rules !== undefined) setClauses.push(`rules = '${data.rules.replace(/'/g, "''")}'`);
-    if (data.coverImageUrl !== undefined) setClauses.push(`coverImageUrl = ${data.coverImageUrl ? `'${data.coverImageUrl}'` : 'NULL'}`);
-    if (data.visibility !== undefined) setClauses.push(`visibility = '${data.visibility}'`);
+    if (data.coverImageUrl !== undefined) setClauses.push(`coverUrl = ${data.coverImageUrl ? `'${data.coverImageUrl}'` : 'NULL'}`);
+    if (data.visibility !== undefined) setClauses.push(`privacy = '${data.visibility}'`);
     if (data.requiresApproval !== undefined) setClauses.push(`requiresApproval = ${data.requiresApproval ? 1 : 0}`);
     
     if (setClauses.length === 0) return;

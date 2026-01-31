@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Share,
+  ImageBackground,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,11 +50,15 @@ interface GroupData {
   name: string;
   description: string;
   type: string;
+  coverUrl: string | null;
   coverImageUrl: string | null;
+  logoUrl: string | null;
   memberCount: number;
   city: string;
+  state: string;
   neighborhood: string;
   visibility: string;
+  privacy: string;
   rules: string;
   requiresApproval: boolean;
   ownerId: number;
@@ -87,14 +92,20 @@ interface Message {
 
 const MODALITY_ICONS: Record<string, { icon: string; color: string }> = {
   corrida: { icon: 'walk-outline', color: '#2196F3' },
+  running: { icon: 'walk-outline', color: '#2196F3' },
   triathlon: { icon: 'bicycle-outline', color: '#FF5722' },
   bike: { icon: 'bicycle-outline', color: '#4CAF50' },
+  cycling: { icon: 'bicycle-outline', color: '#4CAF50' },
   natacao: { icon: 'water-outline', color: '#00BCD4' },
+  swimming: { icon: 'water-outline', color: '#00BCD4' },
   funcional: { icon: 'barbell-outline', color: '#FF5722' },
+  fitness: { icon: 'barbell-outline', color: '#FF5722' },
   caminhada_trail: { icon: 'trail-sign-outline', color: '#4CAF50' },
+  trail: { icon: 'trail-sign-outline', color: '#4CAF50' },
   yoga: { icon: 'body-outline', color: '#9C27B0' },
   lutas: { icon: 'hand-left-outline', color: '#F44336' },
   outro: { icon: 'fitness-outline', color: '#607D8B' },
+  other: { icon: 'fitness-outline', color: '#607D8B' },
 };
 
 const TRAINING_TYPE_SCREENS: Record<string, string> = {
@@ -120,6 +131,12 @@ const formatRelativeTime = (dateString: string) => {
   return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 };
 
+// Format time for chat
+const formatTime = (dateString: string) => {
+  const date = new Date(dateString);
+  return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+};
+
 export default function GroupDetailScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
@@ -138,6 +155,7 @@ export default function GroupDetailScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [trainings, setTrainings] = useState<any[]>([]);
+  const [showOptionsMenu, setShowOptionsMenu] = useState(false);
   
   // Use the useFeed hook for group feed - same as global feed
   const {
@@ -168,17 +186,32 @@ export default function GroupDetailScreen() {
   const canManage = membership?.role === 'owner' || membership?.role === 'admin';
   const canCreateTraining = canManage || membership?.canCreateTraining;
 
+  // Get modality info
+  const groupType = group?.type || group?.groupType || 'corrida';
+  const modalityInfo = MODALITY_ICONS[groupType] || MODALITY_ICONS.outro;
+
+  // Tabs configuration
+  const tabs = [
+    { id: 'feed' as TabType, label: 'Feed', icon: 'newspaper-outline' },
+    { id: 'treinos' as TabType, label: 'Treinos', icon: 'fitness-outline' },
+    { id: 'ranking' as TabType, label: 'Ranking', icon: 'trophy-outline' },
+    { id: 'chat' as TabType, label: 'Chat', icon: 'chatbubbles-outline' },
+  ];
+
   const loadGroupData = useCallback(async () => {
     if (!user?.id) return;
     try {
+      console.log('[GroupDetailScreen] Loading group data for groupId:', groupId);
       const result = await apiRequest('getGroup', { 
         userId: user.id,
         groupId 
       }, 'query');
+      console.log('[GroupDetailScreen] Group data loaded:', result);
       setGroup(result);
       setMembership(result.membership);
     } catch (error) {
       console.error('Error loading group:', error);
+      Alert.alert('Erro', 'Não foi possível carregar os dados do grupo');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -345,13 +378,15 @@ export default function GroupDetailScreen() {
     }
   }, [selectedPost, sharePost]);
 
-  const handleMorePress = useCallback((post: any) => {
+  const handlePostOptions = useCallback((post: any) => {
     setSelectedPost(post);
     setShowOptionsModal(true);
   }, []);
 
   const handleDeletePost = useCallback(async () => {
     if (!selectedPost) return;
+    setShowOptionsModal(false);
+    
     Alert.alert(
       'Excluir post',
       'Tem certeza que deseja excluir este post?',
@@ -361,9 +396,10 @@ export default function GroupDetailScreen() {
           text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
-            const success = await deletePost(selectedPost.id);
-            if (success) {
-              setShowOptionsModal(false);
+            try {
+              await deletePost(selectedPost.id);
+            } catch (error: any) {
+              Alert.alert('Erro', error.message || 'Erro ao excluir post');
             }
           },
         },
@@ -375,14 +411,14 @@ export default function GroupDetailScreen() {
     navigation.navigate('PostLikes' as any, { postId });
   }, [navigation]);
 
-  // Chat functions
+  // Send message handler
   const handleSendMessage = async () => {
-    if (!inputText.trim() || sending || !user?.id) return;
-
+    if (!inputText.trim() || sending) return;
+    
     setSending(true);
     try {
       await apiRequest('sendGroupMessage', {
-        userId: user.id,
+        userId: user?.id,
         groupId,
         content: inputText.trim(),
         replyToId: replyingTo?.id,
@@ -390,48 +426,18 @@ export default function GroupDetailScreen() {
       setInputText('');
       setReplyingTo(null);
       loadMessages();
-      
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (error) {
-      console.error('Error sending message:', error);
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Erro ao enviar mensagem');
     } finally {
       setSending(false);
     }
   };
 
-  const formatTime = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) {
-      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    } else if (diffDays === 1) {
-      return 'Ontem ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    } else if (diffDays < 7) {
-      return date.toLocaleDateString('pt-BR', { weekday: 'short' }) + ' ' + 
-             date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    } else {
-      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-    }
-  };
-
-  const modalityInfo = MODALITY_ICONS[group?.type || 'outro'] || MODALITY_ICONS.outro;
-
-  const tabs: { id: TabType; label: string; icon: string }[] = [
-    { id: 'feed', label: 'Feed', icon: 'newspaper-outline' },
-    { id: 'treinos', label: 'Treinos', icon: 'fitness-outline' },
-    { id: 'ranking', label: 'Ranking', icon: 'trophy-outline' },
-    { id: 'chat', label: 'Chat', icon: 'chatbubbles-outline' },
-  ];
-
-  // Render Feed Tab - Same layout as global feed
+  // Render Feed Tab - Same as global feed
   const renderFeedTab = () => {
     if (feedLoading && posts.length === 0) {
       return (
-        <View style={styles.loadingContainer}>
+        <View style={styles.emptyState}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       );
@@ -441,50 +447,41 @@ export default function GroupDetailScreen() {
       return (
         <View style={styles.emptyState}>
           <Ionicons name="newspaper-outline" size={48} color={COLORS.textMuted} />
-          <Text style={styles.emptyTitle}>Nenhum post ainda</Text>
-          <Text style={styles.emptyText}>Seja o primeiro a compartilhar algo!</Text>
+          <Text style={styles.emptyTitle}>Nenhuma publicação ainda</Text>
+          <Text style={styles.emptyText}>Seja o primeiro a postar!</Text>
         </View>
       );
     }
 
     return (
       <View style={styles.tabContent}>
-        {posts.map((post: any) => {
-          const totalReactions = Object.values(post.reactions || {}).reduce((a: number, b: any) => a + (b as number), 0) as number;
-          const isLiked = post.isLiked;
-          const isSaved = post.isSaved;
-          const authorAvatar = post.author?.photoUrl || post.author?.avatar || 
-            `https://ui-avatars.com/api/?name=${encodeURIComponent(post.author?.name || 'User')}&background=a3e635&color=0a0a0a`;
+        {posts.map((post) => {
+          const isLiked = post.isLiked || false;
+          const isSaved = post.isSaved || false;
+          const totalReactions = post.likesCount || 0;
 
           return (
             <View key={post.id} style={styles.postCard}>
-              {/* Post Header - Same as global feed */}
+              {/* Post Header */}
               <View style={styles.postHeader}>
                 <TouchableOpacity 
                   style={styles.postAuthorSection}
-                  onPress={() => {
-                    if (post.authorId === user?.id) {
-                      navigation.navigate('MyGrid' as any);
-                    } else {
-                      navigation.navigate('UserGrid' as any, { userId: post.authorId, userName: post.author?.name });
-                    }
-                  }}
-                  activeOpacity={0.7}
+                  onPress={() => navigation.navigate('UserProfile' as any, { userId: post.authorId })}
                 >
-                  <Image 
-                    source={{ uri: authorAvatar }} 
-                    style={styles.postAvatar} 
+                  <Image
+                    source={{ uri: post.author?.photoUrl || 'https://via.placeholder.com/40' }}
+                    style={styles.postAvatar}
                   />
                   <View style={styles.postHeaderInfo}>
-                    <Text style={styles.postAuthorName}>{post.author?.name}</Text>
+                    <Text style={styles.postAuthorName}>{post.author?.name || 'Usuário'}</Text>
                     <Text style={styles.postTime}>{formatRelativeTime(post.createdAt)}</Text>
                   </View>
                 </TouchableOpacity>
                 <TouchableOpacity 
                   style={styles.postMoreButton}
-                  onPress={() => handleMorePress(post)}
+                  onPress={() => handlePostOptions(post)}
                 >
-                  <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.text} />
+                  <Ionicons name="ellipsis-horizontal" size={20} color={COLORS.textMuted} />
                 </TouchableOpacity>
               </View>
 
@@ -493,10 +490,10 @@ export default function GroupDetailScreen() {
                 <Text style={styles.postContent}>{post.content}</Text>
               )}
 
-              {/* Post Image - Full width like global feed */}
+              {/* Post Image */}
               {post.imageUrl && (
-                <Image 
-                  source={{ uri: post.imageUrl }} 
+                <Image
+                  source={{ uri: post.imageUrl }}
                   style={styles.postImage}
                   resizeMode="cover"
                 />
@@ -802,17 +799,14 @@ export default function GroupDetailScreen() {
           />
           
           <TouchableOpacity 
-            style={[
-              styles.sendButton,
-              (!inputText.trim() || sending) && styles.sendButtonDisabled
-            ]}
+            style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
             onPress={handleSendMessage}
             disabled={!inputText.trim() || sending}
           >
             {sending ? (
-              <ActivityIndicator size="small" color="#fff" />
+              <ActivityIndicator size="small" color={COLORS.background} />
             ) : (
-              <Ionicons name="send" size={20} color="#fff" />
+              <Ionicons name="send" size={20} color={COLORS.background} />
             )}
           </TouchableOpacity>
         </View>
@@ -846,44 +840,66 @@ export default function GroupDetailScreen() {
   }
 
   const memberCount = Math.max(group?.memberCount || 0, 1);
+  const coverImage = group?.coverUrl || group?.coverImageUrl;
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Header with Logo */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.primary} />
-        </TouchableOpacity>
-        
-        <Image
-          source={require('../../assets/images/logo.png')}
-          style={styles.headerLogo}
-          resizeMode="contain"
-        />
-        
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle} numberOfLines={1}>
-            {group?.name || groupName}
-          </Text>
-          <View style={styles.headerMeta}>
-            <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
-            <Text style={styles.headerSubtitle}>
-              {group?.city}
-            </Text>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
+      {/* Header with Cover Image */}
+      <View style={styles.headerContainer}>
+        <ImageBackground
+          source={coverImage ? { uri: coverImage } : undefined}
+          style={styles.headerBackground}
+          resizeMode="cover"
+        >
+          <View style={styles.headerOverlay}>
+            {/* Top Bar with Back, Settings, Menu */}
+            <View style={styles.headerTopBar}>
+              <TouchableOpacity 
+                onPress={() => navigation.goBack()} 
+                style={styles.headerIconButton}
+              >
+                <Ionicons name="arrow-back" size={24} color="#fff" />
+              </TouchableOpacity>
+              
+              <View style={styles.headerRightButtons}>
+                {canManage && (
+                  <TouchableOpacity 
+                    style={styles.headerIconButton}
+                    onPress={() => navigation.navigate('EditGroup', { groupId, groupName: group?.name || groupName })}
+                  >
+                    <Ionicons name="settings-outline" size={22} color="#fff" />
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity 
+                  style={styles.headerIconButton}
+                  onPress={() => setShowOptionsMenu(true)}
+                >
+                  <Ionicons name="ellipsis-vertical" size={22} color="#fff" />
+                </TouchableOpacity>
+              </View>
+            </View>
+            
+            {/* Group Info */}
+            <View style={styles.headerGroupInfo}>
+              {/* Group Logo */}
+              {group?.logoUrl && (
+                <Image
+                  source={{ uri: group.logoUrl }}
+                  style={styles.groupLogo}
+                />
+              )}
+              <Text style={styles.headerGroupName} numberOfLines={2}>
+                {group?.name || groupName}
+              </Text>
+              <View style={styles.headerGroupMeta}>
+                <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
+                <Text style={styles.headerGroupLocation}>
+                  {group?.city}{group?.state ? `, ${group.state}` : ''}
+                </Text>
+              </View>
+            </View>
           </View>
-        </View>
-        
-        {canManage && (
-          <TouchableOpacity 
-            style={styles.settingsButton}
-            onPress={() => navigation.navigate('EditGroup', { groupId, groupName: group?.name || groupName })}
-          >
-            <Ionicons name="settings-outline" size={22} color={COLORS.textSecondary} />
-          </TouchableOpacity>
-        )}
-        <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={22} color={COLORS.textSecondary} />
-        </TouchableOpacity>
+        </ImageBackground>
       </View>
 
       {/* Quick Actions - Only Members with counter */}
@@ -941,13 +957,6 @@ export default function GroupDetailScreen() {
             />
           }
         >
-          {group?.coverImageUrl && (
-            <Image
-              source={{ uri: group.coverImageUrl }}
-              style={styles.coverImage}
-            />
-          )}
-
           {renderTabContent()}
 
           {membership && membership.role !== 'owner' && (
@@ -973,6 +982,58 @@ export default function GroupDetailScreen() {
           <Ionicons name="add" size={28} color="#0F172A" />
         </TouchableOpacity>
       )}
+
+      {/* Options Menu Modal */}
+      <Modal
+        visible={showOptionsMenu}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setShowOptionsMenu(false)}
+      >
+        <TouchableOpacity 
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={() => setShowOptionsMenu(false)}
+        >
+          <View style={styles.optionsModalContent}>
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => {
+                setShowOptionsMenu(false);
+                // Share group
+                Share.share({
+                  message: `Confira o grupo ${group?.name} no Sou Esporte!`,
+                  title: 'Compartilhar grupo',
+                });
+              }}
+            >
+              <Ionicons name="share-social-outline" size={24} color={COLORS.text} />
+              <Text style={styles.optionText}>Compartilhar grupo</Text>
+            </TouchableOpacity>
+            
+            {membership && membership.role !== 'owner' && (
+              <TouchableOpacity 
+                style={styles.optionItem}
+                onPress={() => {
+                  setShowOptionsMenu(false);
+                  handleLeaveGroup();
+                }}
+              >
+                <Ionicons name="exit-outline" size={24} color="#ef4444" />
+                <Text style={[styles.optionText, { color: '#ef4444' }]}>Sair do grupo</Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity 
+              style={styles.optionItem}
+              onPress={() => setShowOptionsMenu(false)}
+            >
+              <Ionicons name="close-outline" size={24} color={COLORS.text} />
+              <Text style={styles.optionText}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </TouchableOpacity>
+      </Modal>
 
       {/* Post Options Modal */}
       <Modal
@@ -1115,7 +1176,7 @@ export default function GroupDetailScreen() {
                   <Ionicons name="hand-left-outline" size={28} color="#F44336" />
                 </View>
                 <Text style={styles.trainingOptionLabel}>Lutas</Text>
-                <Text style={styles.trainingOptionDesc}>Artes marciais, sparring</Text>
+                <Text style={styles.trainingOptionDesc}>Artes marciais</Text>
               </TouchableOpacity>
             </View>
 
@@ -1142,48 +1203,74 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  header: {
+  
+  // New Header Styles with Cover Image
+  headerContainer: {
+    width: '100%',
+  },
+  headerBackground: {
+    width: '100%',
+    height: 180,
+    backgroundColor: COLORS.card,
+  },
+  headerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'space-between',
+  },
+  headerTopBar: {
     flexDirection: 'row',
+    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    paddingTop: Platform.OS === 'ios' ? 50 : 16,
   },
-  backButton: {
-    padding: 4,
+  headerIconButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(0,0,0,0.3)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  headerLogo: {
-    width: 32,
-    height: 32,
-    marginLeft: 8,
+  headerRightButtons: {
+    flexDirection: 'row',
+    gap: 8,
   },
-  headerTitleContainer: {
-    flex: 1,
-    marginLeft: 12,
+  headerGroupInfo: {
+    padding: 16,
+    paddingBottom: 20,
   },
-  headerTitle: {
-    fontSize: 18,
+  groupLogo: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  headerGroupName: {
+    fontSize: 22,
     fontWeight: '700',
-    color: COLORS.text,
+    color: '#fff',
+    marginBottom: 4,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  headerMeta: {
+  headerGroupMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
+    gap: 6,
   },
-  headerSubtitle: {
-    fontSize: 13,
-    color: COLORS.textSecondary,
+  headerGroupLocation: {
+    fontSize: 14,
+    color: '#fff',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 2,
   },
-  settingsButton: {
-    padding: 8,
-  },
-  menuButton: {
-    padding: 8,
-  },
+  
   quickActionsContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -1246,10 +1333,6 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-  },
-  coverImage: {
-    width: '100%',
-    height: 150,
   },
   tabContent: {
     padding: 16,
@@ -1430,14 +1513,14 @@ const styles = StyleSheet.create({
   participarButton: {
     backgroundColor: COLORS.primary,
     borderRadius: 8,
-    paddingVertical: 12,
+    padding: 12,
     alignItems: 'center',
     marginTop: 16,
   },
   participarButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#0F172A',
+    color: COLORS.background,
   },
   
   // Ranking Card
@@ -1467,18 +1550,21 @@ const styles = StyleSheet.create({
   rankingButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: 8,
+    backgroundColor: COLORS.primary + '20',
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    borderRadius: 8,
   },
   rankingButtonText: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.primary,
   },
   
-  // Chat Tab Styles
+  // Chat Styles
   chatTabContainer: {
     flex: 1,
-    backgroundColor: COLORS.background,
   },
   chatLoadingContainer: {
     flex: 1,
@@ -1487,12 +1573,12 @@ const styles = StyleSheet.create({
   },
   messagesList: {
     padding: 16,
-    paddingBottom: 8,
+    flexGrow: 1,
   },
   messageContainer: {
     flexDirection: 'row',
-    marginBottom: 8,
     alignItems: 'flex-end',
+    marginBottom: 8,
   },
   ownMessageContainer: {
     justifyContent: 'flex-end',
@@ -1505,7 +1591,6 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.border,
   },
   avatarPlaceholder: {
     width: 36,
@@ -1513,8 +1598,8 @@ const styles = StyleSheet.create({
   },
   messageBubble: {
     maxWidth: '75%',
-    borderRadius: 16,
     padding: 12,
+    borderRadius: 16,
   },
   ownMessageBubble: {
     backgroundColor: COLORS.primary,
@@ -1530,13 +1615,41 @@ const styles = StyleSheet.create({
     color: COLORS.primary,
     marginBottom: 4,
   },
-  replyContainer: {
-    backgroundColor: '#0F172A40',
+  messageText: {
+    fontSize: 15,
+    color: COLORS.text,
+    lineHeight: 20,
+  },
+  ownMessageText: {
+    color: COLORS.background,
+  },
+  messageImage: {
+    width: 200,
+    height: 200,
     borderRadius: 8,
+    marginTop: 8,
+  },
+  messageTime: {
+    fontSize: 10,
+    color: COLORS.textMuted,
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  ownMessageTime: {
+    color: 'rgba(0,0,0,0.5)',
+  },
+  replyButton: {
     padding: 8,
-    marginBottom: 8,
+    marginLeft: 4,
+  },
+  replyContainer: {
+    backgroundColor: 'rgba(0,0,0,0.1)',
     borderLeftWidth: 2,
     borderLeftColor: COLORS.primary,
+    paddingLeft: 8,
+    paddingVertical: 4,
+    marginBottom: 8,
+    borderRadius: 4,
   },
   replyName: {
     fontSize: 11,
@@ -1546,34 +1659,6 @@ const styles = StyleSheet.create({
   replyContent: {
     fontSize: 12,
     color: COLORS.textSecondary,
-    marginTop: 2,
-  },
-  messageText: {
-    fontSize: 15,
-    color: COLORS.text,
-    lineHeight: 20,
-  },
-  ownMessageText: {
-    color: '#0F172A',
-  },
-  messageImage: {
-    width: 200,
-    height: 150,
-    borderRadius: 8,
-    marginTop: 8,
-  },
-  messageTime: {
-    fontSize: 10,
-    color: COLORS.textSecondary,
-    marginTop: 4,
-    alignSelf: 'flex-end',
-  },
-  ownMessageTime: {
-    color: '#0F172A80',
-  },
-  replyButton: {
-    padding: 8,
-    marginLeft: 4,
   },
   replyPreview: {
     flexDirection: 'row',
@@ -1585,9 +1670,6 @@ const styles = StyleSheet.create({
   },
   replyPreviewContent: {
     flex: 1,
-    borderLeftWidth: 2,
-    borderLeftColor: COLORS.primary,
-    paddingLeft: 8,
   },
   replyPreviewName: {
     fontSize: 12,
@@ -1597,16 +1679,14 @@ const styles = StyleSheet.create({
   replyPreviewText: {
     fontSize: 13,
     color: COLORS.textSecondary,
-    marginTop: 2,
   },
   chatInputContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-end',
     padding: 12,
     backgroundColor: COLORS.card,
     borderTopWidth: 1,
     borderTopColor: COLORS.border,
-    paddingBottom: Platform.OS === 'ios' ? 12 : 12,
   },
   attachButton: {
     padding: 8,
@@ -1631,7 +1711,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendButtonDisabled: {
-    opacity: 0.5,
+    backgroundColor: COLORS.border,
   },
   
   // Leave Button
@@ -1642,9 +1722,8 @@ const styles = StyleSheet.create({
     padding: 16,
     marginHorizontal: 16,
     marginTop: 16,
+    backgroundColor: 'rgba(239, 68, 68, 0.1)',
     borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#ef4444',
     gap: 8,
   },
   leaveButtonText: {
@@ -1656,22 +1735,22 @@ const styles = StyleSheet.create({
   // Create Post FAB
   createPostFab: {
     position: 'absolute',
-    bottom: 24,
-    right: 24,
+    right: 16,
+    bottom: 16,
     width: 56,
     height: 56,
     borderRadius: 28,
     backgroundColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    elevation: 4,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.25,
-    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
   },
   
-  // Modals
+  // Modal Styles
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
@@ -1686,7 +1765,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   modalTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: COLORS.text,
     textAlign: 'center',
@@ -1696,7 +1775,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textSecondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   
   // Options Modal
