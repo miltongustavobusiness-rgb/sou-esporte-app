@@ -44,6 +44,19 @@ interface SearchUser {
   photoUrl: string | null;
 }
 
+// Dark theme colors
+const COLORS = {
+  background: '#0F172A',
+  card: '#1E293B',
+  cardBorder: '#334155',
+  primary: '#84CC16',
+  text: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  danger: '#EF4444',
+  overlay: 'rgba(0,0,0,0.7)',
+};
+
 const ROLE_LABELS: Record<string, { label: string; color: string; icon: string }> = {
   owner: { label: 'Dono', color: '#FFD700', icon: 'star' },
   admin: { label: 'Admin', color: '#FF5722', icon: 'shield' },
@@ -224,14 +237,14 @@ export default function ManageMembersScreen() {
             </View>
             {item.canCreateTraining && (
               <View style={styles.permissionBadge}>
-                <Ionicons name="add-circle" size={12} color="#00C853" />
+                <Ionicons name="add-circle" size={12} color={COLORS.primary} />
                 <Text style={styles.permissionLabel}>Cria treinos</Text>
               </View>
             )}
           </View>
         </View>
         {canManage && item.role !== 'owner' && (
-          <Ionicons name="chevron-forward" size={20} color="#ccc" />
+          <Ionicons name="chevron-forward" size={20} color={COLORS.textMuted} />
         )}
       </TouchableOpacity>
     );
@@ -261,7 +274,7 @@ export default function ManageMembersScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00C853" />
+          <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
       </SafeAreaView>
     );
@@ -271,7 +284,7 @@ export default function ManageMembersScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Membros</Text>
@@ -282,24 +295,24 @@ export default function ManageMembersScreen() {
             style={styles.addButton}
             onPress={() => setShowInviteModal(true)}
           >
-            <Ionicons name="person-add" size={22} color="#00C853" />
+            <Ionicons name="person-add" size={22} color={COLORS.primary} />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color="#999" />
+        <Ionicons name="search" size={20} color={COLORS.textMuted} />
         <TextInput
           style={styles.searchInput}
           placeholder="Buscar membro..."
           value={searchQuery}
           onChangeText={setSearchQuery}
-          placeholderTextColor="#999"
+          placeholderTextColor={COLORS.textMuted}
         />
         {searchQuery.length > 0 && (
           <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color="#999" />
+            <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
           </TouchableOpacity>
         )}
       </View>
@@ -314,12 +327,13 @@ export default function ManageMembersScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={handleRefresh}
-            colors={['#00C853']}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
           />
         }
         ListEmptyComponent={
           <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={48} color="#ccc" />
+            <Ionicons name="people-outline" size={48} color={COLORS.textMuted} />
             <Text style={styles.emptyText}>Nenhum membro encontrado</Text>
           </View>
         }
@@ -336,12 +350,12 @@ export default function ManageMembersScreen() {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>Convidar Membros</Text>
             <TouchableOpacity onPress={() => setShowInviteModal(false)}>
-              <Ionicons name="close" size={24} color="#333" />
+              <Ionicons name="close" size={24} color={COLORS.text} />
             </TouchableOpacity>
           </View>
 
           <View style={styles.modalSearchContainer}>
-            <Ionicons name="search" size={20} color="#999" />
+            <Ionicons name="search" size={20} color={COLORS.textMuted} />
             <TextInput
               style={styles.searchInput}
               placeholder="Buscar usuário por nome ou @username..."
@@ -350,13 +364,13 @@ export default function ManageMembersScreen() {
                 setInviteSearch(text);
                 searchUsers(text);
               }}
-              placeholderTextColor="#999"
+              placeholderTextColor={COLORS.textMuted}
               autoFocus
             />
           </View>
 
           {searchingUsers ? (
-            <ActivityIndicator size="small" color="#00C853" style={{ marginTop: 20 }} />
+            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 20 }} />
           ) : (
             <FlatList
               data={searchResults}
@@ -370,7 +384,7 @@ export default function ManageMembersScreen() {
                   </View>
                 ) : (
                   <View style={styles.emptyContainer}>
-                    <Ionicons name="search" size={48} color="#ccc" />
+                    <Ionicons name="search" size={48} color={COLORS.textMuted} />
                     <Text style={styles.emptyText}>Digite pelo menos 2 caracteres</Text>
                   </View>
                 )
@@ -443,7 +457,7 @@ export default function ManageMembersScreen() {
                   <Ionicons 
                     name={selectedMember.canCreateTraining ? 'checkmark-circle' : 'add-circle-outline'} 
                     size={22} 
-                    color={selectedMember.canCreateTraining ? '#00C853' : '#666'} 
+                    color={selectedMember.canCreateTraining ? COLORS.primary : COLORS.textMuted} 
                   />
                   <Text style={styles.actionItemText}>
                     {selectedMember.canCreateTraining 
@@ -456,8 +470,8 @@ export default function ManageMembersScreen() {
                   style={[styles.actionItem, styles.dangerAction]}
                   onPress={() => handleRemoveMember(selectedMember)}
                 >
-                  <Ionicons name="person-remove" size={22} color="#FF5252" />
-                  <Text style={[styles.actionItemText, { color: '#FF5252' }]}>
+                  <Ionicons name="person-remove" size={22} color={COLORS.danger} />
+                  <Text style={[styles.actionItemText, { color: COLORS.danger }]}>
                     Remover do grupo
                   </Text>
                 </TouchableOpacity>
@@ -480,7 +494,7 @@ export default function ManageMembersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   loadingContainer: {
     flex: 1,
@@ -492,9 +506,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: COLORS.cardBorder,
   },
   backButton: {
     padding: 4,
@@ -506,11 +520,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   addButton: {
@@ -519,20 +533,20 @@ const styles = StyleSheet.create({
   searchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.cardBorder,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 8,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
   },
   listContent: {
     padding: 16,
@@ -541,16 +555,18 @@ const styles = StyleSheet.create({
   memberCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   memberPhoto: {
     width: 50,
     height: 50,
     borderRadius: 25,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: COLORS.cardBorder,
   },
   memberInfo: {
     flex: 1,
@@ -559,11 +575,11 @@ const styles = StyleSheet.create({
   memberName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   memberUsername: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   memberMeta: {
@@ -591,12 +607,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
     borderRadius: 10,
-    backgroundColor: '#f0fff4',
+    backgroundColor: 'rgba(132, 204, 22, 0.15)',
     gap: 4,
   },
   permissionLabel: {
     fontSize: 11,
-    color: '#00C853',
+    color: COLORS.primary,
   },
   emptyContainer: {
     alignItems: 'center',
@@ -604,12 +620,12 @@ const styles = StyleSheet.create({
   },
   emptyText: {
     fontSize: 15,
-    color: '#999',
+    color: COLORS.textMuted,
     marginTop: 12,
   },
   modalContainer: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   modalHeader: {
     flexDirection: 'row',
@@ -617,25 +633,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 16,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: COLORS.cardBorder,
   },
   modalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
   },
   modalSearchContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     marginHorizontal: 16,
     marginVertical: 12,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.cardBorder,
   },
   searchResultsList: {
     padding: 16,
@@ -644,16 +660,18 @@ const styles = StyleSheet.create({
   searchResultCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 12,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: COLORS.cardBorder,
   },
   searchResultPhoto: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: COLORS.cardBorder,
   },
   searchResultInfo: {
     flex: 1,
@@ -662,16 +680,16 @@ const styles = StyleSheet.create({
   searchResultName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   searchResultUsername: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   inviteButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#00C853',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
@@ -684,11 +702,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: COLORS.overlay,
     justifyContent: 'flex-end',
   },
   actionSheet: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -702,23 +720,23 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#e0e0e0',
+    backgroundColor: COLORS.cardBorder,
   },
   actionSheetName: {
     fontSize: 17,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     marginTop: 12,
   },
   actionSheetUsername: {
     fontSize: 14,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   actionSectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textSecondary,
     marginBottom: 12,
   },
   rolesGrid: {
@@ -731,39 +749,39 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
     gap: 6,
   },
   roleOptionLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   actionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingVertical: 14,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: COLORS.cardBorder,
     gap: 12,
   },
   actionItemText: {
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
   },
   dangerAction: {
-    borderTopColor: '#ffebee',
+    borderTopColor: 'rgba(239, 68, 68, 0.2)',
   },
   cancelButton: {
     alignItems: 'center',
     paddingVertical: 14,
     marginTop: 10,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
     borderRadius: 12,
   },
   cancelButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textSecondary,
   },
 });
