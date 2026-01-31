@@ -3048,23 +3048,40 @@ export async function getUserGroups(userId: number): Promise<any[]> {
     
     console.log('[db.getUserGroups] Database connection OK, executing query...');
     
-    const result = await db.select({
-      group: groups,
-      membership: groupMembers,
-    })
-    .from(groupMembers)
-    .innerJoin(groups, eq(groupMembers.groupId, groups.id))
-    .where(and(
-      eq(groupMembers.userId, userId),
-      eq(groupMembers.status, 'active'),
-      eq(groups.status, 'active')
-    ));
+    // Use raw SQL to avoid Drizzle issues with enum columns
+    // Get groups where user is a member OR where user is the owner
+    const result = await db.execute(
+      sql`SELECT DISTINCT
+            g.id, g.name, g.description, g.coverImage, g.modality, g.city, g.state,
+            g.isPrivate, g.requiresApproval, g.memberCount, g.ownerId, g.status,
+            g.createdAt, g.updatedAt,
+            COALESCE(gm.role, CASE WHEN g.ownerId = ${userId} THEN 'owner' ELSE NULL END) as role
+          FROM \`groups\` g
+          LEFT JOIN group_members gm ON gm.groupId = g.id AND gm.userId = ${userId} AND gm.status = 'active'
+          WHERE g.status = 'active'
+            AND (gm.userId = ${userId} OR g.ownerId = ${userId})
+          ORDER BY g.createdAt DESC`
+    );
     
-    console.log('[db.getUserGroups] Query executed, result count:', result?.length || 0);
+    const rows = (result as any)[0] || [];
+    console.log('[db.getUserGroups] Query executed, result count:', rows.length);
     
-    const mappedResult = result.map(r => ({
-      ...r.group,
-      role: r.membership.role,
+    const mappedResult = rows.map((r: any) => ({
+      id: r.id,
+      name: r.name,
+      description: r.description,
+      coverImage: r.coverImage,
+      modality: r.modality,
+      city: r.city,
+      state: r.state,
+      isPrivate: r.isPrivate,
+      requiresApproval: r.requiresApproval,
+      memberCount: r.memberCount,
+      ownerId: r.ownerId,
+      status: r.status,
+      createdAt: r.createdAt,
+      updatedAt: r.updatedAt,
+      role: r.role || 'owner', // Default to owner if no role found (owner not in group_members)
     }));
     
     console.log('[db.getUserGroups] Mapped result count:', mappedResult.length);
@@ -5286,15 +5303,27 @@ export async function createGroupInvite(invite: {
   invitedBy: number;
   message?: string;
 }): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(groupInvites).values({
-    ...invite,
-    status: 'pending',
-  } as any);
-  
-  return result[0].insertId;
+  try {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    
+    console.log('[db.createGroupInvite] Creating invite:', invite);
+    
+    // Use raw SQL to avoid schema mismatch issues
+    const result = await db.execute(
+      sql`INSERT INTO group_invites (groupId, invitedUserId, invitedBy, status, message, createdAt)
+          VALUES (${invite.groupId}, ${invite.invitedUserId}, ${invite.invitedBy}, 'pending', ${invite.message || null}, NOW())`
+    );
+    
+    const insertId = (result as any)[0]?.insertId;
+    console.log('[db.createGroupInvite] Invite created with ID:', insertId);
+    
+    return insertId;
+  } catch (error: any) {
+    console.error('[db.createGroupInvite] Error:', error.message);
+    console.error('[db.createGroupInvite] Stack:', error.stack);
+    throw error;
+  }
 }
 
 export async function getGroupPendingInvites(groupId: number): Promise<any[]> {
