@@ -1690,6 +1690,8 @@ export const appRouter = router({
         state: z.string().max(2).optional(),
         meetingPoint: z.string().optional(),
         requiresApproval: z.boolean().optional(),
+        logoUrl: z.string().optional(),
+        coverUrl: z.string().optional(),
       }))
       .mutation(async ({ input }) => {
         console.log('[mobile.createGroup] Input received:', JSON.stringify(input));
@@ -1727,6 +1729,13 @@ export const appRouter = router({
           }
           if (input.meetingPoint && input.meetingPoint.trim().length > 0) {
             groupInsertData.meetingPoint = input.meetingPoint.trim();
+          }
+          // Add logo and cover URLs
+          if (input.logoUrl && input.logoUrl.trim().length > 0) {
+            groupInsertData.logoUrl = input.logoUrl.trim();
+          }
+          if (input.coverUrl && input.coverUrl.trim().length > 0) {
+            groupInsertData.coverUrl = input.coverUrl.trim();
           }
           
           console.log('[mobile.createGroup] Inserting group data:', JSON.stringify(groupInsertData));
