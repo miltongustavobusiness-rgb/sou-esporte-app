@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,10 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
+  FlatList,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +22,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { apiRequest } from '../config/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'GroupDetail'>;
@@ -48,6 +53,25 @@ interface MembershipData {
   status: string;
 }
 
+interface Message {
+  id: number;
+  content: string;
+  imageUrl?: string;
+  senderId: number;
+  createdAt: string;
+  sender: {
+    id: number;
+    name: string;
+    username: string;
+    photoUrl: string | null;
+  };
+  replyTo?: {
+    id: number;
+    content: string;
+    senderName: string;
+  };
+}
+
 const MODALITY_ICONS: Record<string, { icon: string; color: string }> = {
   corrida: { icon: 'walk-outline', color: '#2196F3' },
   triathlon: { icon: 'bicycle-outline', color: '#FF5722' },
@@ -75,6 +99,8 @@ export default function GroupDetailScreen() {
     groupName: 'Grupo',
     isAdmin: false,
   };
+  const { user } = useApp();
+  const flatListRef = useRef<FlatList>(null);
   
   const [activeTab, setActiveTab] = useState<TabType>('feed');
   const [group, setGroup] = useState<GroupData | null>(null);
@@ -84,6 +110,13 @@ export default function GroupDetailScreen() {
   const [showTrainingModal, setShowTrainingModal] = useState(false);
   const [trainings, setTrainings] = useState<any[]>([]);
   const [posts, setPosts] = useState<any[]>([]);
+  
+  // Chat states
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [inputText, setInputText] = useState('');
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   const canManage = membership?.role === 'owner' || membership?.role === 'admin';
   const canCreateTraining = canManage || membership?.canCreateTraining;
@@ -122,17 +155,45 @@ export default function GroupDetailScreen() {
     }
   }, [groupId]);
 
+  const loadMessages = useCallback(async () => {
+    try {
+      setChatLoading(true);
+      const result = await apiRequest('groups.getMessages', { 
+        groupId, 
+        limit: 50 
+      });
+      setMessages(result || []);
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    } finally {
+      setChatLoading(false);
+    }
+  }, [groupId]);
+
   useEffect(() => {
     loadGroupData();
     loadTrainings();
     loadPosts();
   }, [loadGroupData, loadTrainings, loadPosts]);
 
+  // Load chat messages when chat tab is active
+  useEffect(() => {
+    if (activeTab === 'chat') {
+      loadMessages();
+      // Poll for new messages every 5 seconds
+      const interval = setInterval(loadMessages, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, loadMessages]);
+
   const handleRefresh = () => {
     setRefreshing(true);
     loadGroupData();
     loadTrainings();
     loadPosts();
+    if (activeTab === 'chat') {
+      loadMessages();
+    }
   };
 
   const handleCreateTraining = (type: string) => {
@@ -158,13 +219,6 @@ export default function GroupDetailScreen() {
       groupId,
       groupName: group?.name || groupName,
       groupType: group?.type || 'corrida',
-    });
-  };
-
-  const handleNavigateToChat = () => {
-    navigation.navigate('GroupChat', {
-      groupId,
-      groupName: group?.name || groupName,
     });
   };
 
@@ -209,6 +263,57 @@ export default function GroupDetailScreen() {
     );
   };
 
+  const handleCreatePost = () => {
+    // Navigate to create post screen
+    navigation.navigate('CreatePost' as any, { 
+      groupId, 
+      groupName: group?.name || groupName 
+    });
+  };
+
+  // Chat functions
+  const handleSendMessage = async () => {
+    if (!inputText.trim() || sending) return;
+
+    setSending(true);
+    try {
+      await apiRequest('groups.sendMessage', {
+        groupId,
+        content: inputText.trim(),
+        replyToId: replyingTo?.id,
+      });
+      setInputText('');
+      setReplyingTo(null);
+      loadMessages();
+      
+      // Scroll to bottom
+      setTimeout(() => {
+        flatListRef.current?.scrollToEnd({ animated: true });
+      }, 100);
+    } catch (error) {
+      console.error('Error sending message:', error);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (diffDays === 0) {
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays === 1) {
+      return 'Ontem ' + date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } else if (diffDays < 7) {
+      return date.toLocaleDateString('pt-BR', { weekday: 'short' }) + ' ' + 
+             date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    } else {
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    }
+  };
+
   const modalityInfo = MODALITY_ICONS[group?.type || 'outro'] || MODALITY_ICONS.outro;
 
   const tabs: { id: TabType; label: string; icon: string }[] = [
@@ -218,63 +323,12 @@ export default function GroupDetailScreen() {
     { id: 'chat', label: 'Chat', icon: 'chatbubbles-outline' },
   ];
 
-  // Quick Actions for Hub
-  const renderQuickActions = () => (
-    <View style={styles.quickActionsContainer}>
-      <TouchableOpacity 
-        style={styles.quickAction}
-        onPress={handleNavigateToMembers}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: '#E3F2FD' }]}>
-          <Ionicons name="people" size={22} color="#2196F3" />
-        </View>
-        <Text style={styles.quickActionLabel}>Membros</Text>
-        <Text style={styles.quickActionValue}>{group?.memberCount || 0}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.quickAction}
-        onPress={handleNavigateToRanking}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: '#FFF8E1' }]}>
-          <Ionicons name="trophy" size={22} color="#FFC107" />
-        </View>
-        <Text style={styles.quickActionLabel}>Ranking</Text>
-        <Text style={styles.quickActionValue}>Ver</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity 
-        style={styles.quickAction}
-        onPress={handleNavigateToChat}
-      >
-        <View style={[styles.quickActionIcon, { backgroundColor: '#E8F5E9' }]}>
-          <Ionicons name="chatbubbles" size={22} color="#4CAF50" />
-        </View>
-        <Text style={styles.quickActionLabel}>Chat</Text>
-        <Text style={styles.quickActionValue}>Abrir</Text>
-      </TouchableOpacity>
-
-      {canCreateTraining && (
-        <TouchableOpacity 
-          style={styles.quickAction}
-          onPress={() => setShowTrainingModal(true)}
-        >
-          <View style={[styles.quickActionIcon, { backgroundColor: '#FFEBEE' }]}>
-            <Ionicons name="add-circle" size={22} color="#F44336" />
-          </View>
-          <Text style={styles.quickActionLabel}>Treino</Text>
-          <Text style={styles.quickActionValue}>Criar</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
-
   // Render Feed Tab
   const renderFeedTab = () => (
     <View style={styles.tabContent}>
       {posts.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="newspaper-outline" size={48} color="#ccc" />
+          <Ionicons name="newspaper-outline" size={48} color="#64748b" />
           <Text style={styles.emptyTitle}>Nenhum post ainda</Text>
           <Text style={styles.emptyText}>Seja o primeiro a compartilhar algo!</Text>
         </View>
@@ -297,11 +351,11 @@ export default function GroupDetailScreen() {
             )}
             <View style={styles.postActions}>
               <TouchableOpacity style={styles.postAction}>
-                <Ionicons name="heart-outline" size={20} color="#666" />
+                <Ionicons name="heart-outline" size={20} color="#94a3b8" />
                 <Text style={styles.postActionText}>{post.likesCount || 0}</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.postAction}>
-                <Ionicons name="chatbubble-outline" size={20} color="#666" />
+                <Ionicons name="chatbubble-outline" size={20} color="#94a3b8" />
                 <Text style={styles.postActionText}>{post.commentsCount || 0}</Text>
               </TouchableOpacity>
             </View>
@@ -319,14 +373,14 @@ export default function GroupDetailScreen() {
           style={styles.createTrainingButton}
           onPress={() => setShowTrainingModal(true)}
         >
-          <Ionicons name="add-circle" size={24} color="#00C853" />
+          <Ionicons name="add-circle" size={24} color="#84CC16" />
           <Text style={styles.createTrainingText}>Criar Novo Treino</Text>
         </TouchableOpacity>
       )}
 
       {trainings.length === 0 ? (
         <View style={styles.emptyState}>
-          <Ionicons name="fitness-outline" size={48} color="#ccc" />
+          <Ionicons name="fitness-outline" size={48} color="#64748b" />
           <Text style={styles.emptyTitle}>Nenhum treino agendado</Text>
           <Text style={styles.emptyText}>
             {canCreateTraining 
@@ -354,7 +408,7 @@ export default function GroupDetailScreen() {
                 </Text>
               </View>
               <View style={styles.treinoParticipants}>
-                <Ionicons name="people" size={16} color="#666" />
+                <Ionicons name="people" size={16} color="#94a3b8" />
                 <Text style={styles.treinoParticipantsText}>
                   {treino.goingCount || 0}
                   {treino.maxParticipants ? `/${treino.maxParticipants}` : ''}
@@ -364,7 +418,7 @@ export default function GroupDetailScreen() {
             
             {treino.meetingPoint && (
               <View style={styles.treinoLocation}>
-                <Ionicons name="location-outline" size={16} color="#666" />
+                <Ionicons name="location-outline" size={16} color="#94a3b8" />
                 <Text style={styles.treinoLocationText}>{treino.meetingPoint}</Text>
               </View>
             )}
@@ -381,49 +435,188 @@ export default function GroupDetailScreen() {
     </View>
   );
 
-  // Render Ranking Tab (Preview)
+  // Render Ranking Tab
   const renderRankingTab = () => (
     <View style={styles.tabContent}>
       <TouchableOpacity 
-        style={styles.rankingPreviewCard}
+        style={styles.rankingCard}
         onPress={handleNavigateToRanking}
       >
-        <View style={styles.rankingPreviewHeader}>
+        <View style={styles.rankingHeader}>
           <Ionicons name="trophy" size={32} color="#FFD700" />
-          <Text style={styles.rankingPreviewTitle}>Ranking do Grupo</Text>
+          <Text style={styles.rankingTitle}>Ranking do Grupo</Text>
         </View>
-        <Text style={styles.rankingPreviewText}>
+        <Text style={styles.rankingText}>
           Veja quem são os membros mais ativos e conquiste seu lugar no pódio!
         </Text>
-        <View style={styles.rankingPreviewButton}>
-          <Text style={styles.rankingPreviewButtonText}>Ver Ranking Completo</Text>
-          <Ionicons name="chevron-forward" size={20} color="#00C853" />
+        <View style={styles.rankingButton}>
+          <Text style={styles.rankingButtonText}>Ver Ranking Completo</Text>
+          <Ionicons name="chevron-forward" size={20} color="#84CC16" />
         </View>
       </TouchableOpacity>
     </View>
   );
 
-  // Render Chat Tab (Preview)
-  const renderChatTab = () => (
-    <View style={styles.tabContent}>
-      <TouchableOpacity 
-        style={styles.chatPreviewCard}
-        onPress={handleNavigateToChat}
+  // Render Chat Tab - Direct chat without "Open Chat" button
+  const renderChatTab = () => {
+    const renderMessage = ({ item, index }: { item: Message; index: number }) => {
+      const isOwnMessage = item.senderId === user?.id;
+      const showAvatar = !isOwnMessage && (
+        index === 0 || 
+        messages[index - 1]?.senderId !== item.senderId
+      );
+
+      return (
+        <View style={[
+          styles.messageContainer,
+          isOwnMessage && styles.ownMessageContainer
+        ]}>
+          {!isOwnMessage && (
+            <View style={styles.avatarContainer}>
+              {showAvatar ? (
+                <Image
+                  source={{ uri: item.sender.photoUrl || 'https://via.placeholder.com/36' }}
+                  style={styles.chatAvatar}
+                />
+              ) : (
+                <View style={styles.avatarPlaceholder} />
+              )}
+            </View>
+          )}
+          
+          <View style={[
+            styles.messageBubble,
+            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+          ]}>
+            {!isOwnMessage && showAvatar && (
+              <Text style={styles.senderName}>{item.sender.name}</Text>
+            )}
+            
+            {item.replyTo && (
+              <View style={styles.replyContainer}>
+                <Text style={styles.replyName}>{item.replyTo.senderName}</Text>
+                <Text style={styles.replyContent} numberOfLines={1}>
+                  {item.replyTo.content}
+                </Text>
+              </View>
+            )}
+            
+            <Text style={[
+              styles.messageText,
+              isOwnMessage && styles.ownMessageText
+            ]}>
+              {item.content}
+            </Text>
+            
+            {item.imageUrl && (
+              <Image
+                source={{ uri: item.imageUrl }}
+                style={styles.messageImage}
+              />
+            )}
+            
+            <Text style={[
+              styles.messageTime,
+              isOwnMessage && styles.ownMessageTime
+            ]}>
+              {formatTime(item.createdAt)}
+            </Text>
+          </View>
+          
+          {!isOwnMessage && (
+            <TouchableOpacity 
+              style={styles.replyButton}
+              onPress={() => setReplyingTo(item)}
+            >
+              <Ionicons name="arrow-undo-outline" size={16} color="#64748b" />
+            </TouchableOpacity>
+          )}
+        </View>
+      );
+    };
+
+    return (
+      <KeyboardAvoidingView
+        style={styles.chatTabContainer}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 180 : 0}
       >
-        <View style={styles.chatPreviewHeader}>
-          <Ionicons name="chatbubbles" size={32} color="#4CAF50" />
-          <Text style={styles.chatPreviewTitle}>Chat do Grupo</Text>
+        {chatLoading ? (
+          <View style={styles.chatLoadingContainer}>
+            <ActivityIndicator size="large" color="#84CC16" />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={messages}
+            renderItem={renderMessage}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.messagesList}
+            inverted={false}
+            onContentSizeChange={() => {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            }}
+            ListEmptyComponent={
+              <View style={styles.emptyState}>
+                <Ionicons name="chatbubbles-outline" size={48} color="#64748b" />
+                <Text style={styles.emptyTitle}>Nenhuma mensagem ainda</Text>
+                <Text style={styles.emptyText}>Seja o primeiro a enviar uma mensagem!</Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* Reply Preview */}
+        {replyingTo && (
+          <View style={styles.replyPreview}>
+            <View style={styles.replyPreviewContent}>
+              <Text style={styles.replyPreviewName}>
+                Respondendo a {replyingTo.sender.name}
+              </Text>
+              <Text style={styles.replyPreviewText} numberOfLines={1}>
+                {replyingTo.content}
+              </Text>
+            </View>
+            <TouchableOpacity onPress={() => setReplyingTo(null)}>
+              <Ionicons name="close" size={20} color="#94a3b8" />
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Input Area */}
+        <View style={styles.chatInputContainer}>
+          <TouchableOpacity style={styles.attachButton}>
+            <Ionicons name="add-circle-outline" size={24} color="#94a3b8" />
+          </TouchableOpacity>
+          
+          <TextInput
+            style={styles.chatInput}
+            placeholder="Digite uma mensagem..."
+            value={inputText}
+            onChangeText={setInputText}
+            multiline
+            maxLength={1000}
+            placeholderTextColor="#64748b"
+          />
+          
+          <TouchableOpacity 
+            style={[
+              styles.sendButton,
+              (!inputText.trim() || sending) && styles.sendButtonDisabled
+            ]}
+            onPress={handleSendMessage}
+            disabled={!inputText.trim() || sending}
+          >
+            {sending ? (
+              <ActivityIndicator size="small" color="#fff" />
+            ) : (
+              <Ionicons name="send" size={20} color="#fff" />
+            )}
+          </TouchableOpacity>
         </View>
-        <Text style={styles.chatPreviewText}>
-          Converse com os membros do grupo em tempo real!
-        </Text>
-        <View style={styles.chatPreviewButton}>
-          <Text style={styles.chatPreviewButtonText}>Abrir Chat</Text>
-          <Ionicons name="chevron-forward" size={20} color="#00C853" />
-        </View>
-      </TouchableOpacity>
-    </View>
-  );
+      </KeyboardAvoidingView>
+    );
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -444,19 +637,30 @@ export default function GroupDetailScreen() {
     return (
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#00C853" />
+          <ActivityIndicator size="large" color="#84CC16" />
         </View>
       </SafeAreaView>
     );
   }
 
+  // Calculate actual member count (at least 1 for the owner)
+  const memberCount = Math.max(group?.memberCount || 0, 1);
+
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
+      {/* Header with Logo */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#84CC16" />
         </TouchableOpacity>
+        
+        {/* Logo */}
+        <Image
+          source={require('../../assets/images/logo.png')}
+          style={styles.headerLogo}
+          resizeMode="contain"
+        />
+        
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle} numberOfLines={1}>
             {group?.name || groupName}
@@ -464,83 +668,114 @@ export default function GroupDetailScreen() {
           <View style={styles.headerMeta}>
             <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
             <Text style={styles.headerSubtitle}>
-              {group?.city} • {group?.memberCount} membros
+              {group?.city}
             </Text>
           </View>
         </View>
+        
         {canManage && (
           <TouchableOpacity 
             style={styles.settingsButton}
             onPress={() => navigation.navigate('EditGroup', { groupId, groupName: group?.name || groupName })}
           >
-            <Ionicons name="settings-outline" size={22} color="#333" />
+            <Ionicons name="settings-outline" size={22} color="#94a3b8" />
           </TouchableOpacity>
         )}
         <TouchableOpacity style={styles.menuButton}>
-          <Ionicons name="ellipsis-vertical" size={22} color="#333" />
+          <Ionicons name="ellipsis-vertical" size={22} color="#94a3b8" />
         </TouchableOpacity>
       </View>
 
-      <ScrollView
-        style={styles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={['#00C853']}
-          />
-        }
-      >
-        {/* Cover Image */}
-        {group?.coverImageUrl && (
-          <Image
-            source={{ uri: group.coverImageUrl }}
-            style={styles.coverImage}
-          />
-        )}
+      {/* Quick Actions - Only Members with counter */}
+      <View style={styles.quickActionsContainer}>
+        <TouchableOpacity 
+          style={styles.membersButton}
+          onPress={handleNavigateToMembers}
+        >
+          <View style={styles.membersIconContainer}>
+            <Ionicons name="people" size={22} color="#84CC16" />
+          </View>
+          <View style={styles.membersInfo}>
+            <Text style={styles.membersLabel}>Membros</Text>
+            <Text style={styles.membersCount}>{memberCount}</Text>
+          </View>
+          <Ionicons name="chevron-forward" size={20} color="#64748b" />
+        </TouchableOpacity>
+      </View>
 
-        {/* Quick Actions Hub */}
-        {renderQuickActions()}
-
-        {/* Tabs */}
-        <View style={styles.tabsContainer}>
-          {tabs.map((tab) => (
-            <TouchableOpacity
-              key={tab.id}
-              style={[styles.tab, activeTab === tab.id && styles.tabActive]}
-              onPress={() => setActiveTab(tab.id)}
-            >
-              <Ionicons
-                name={tab.icon as any}
-                size={20}
-                color={activeTab === tab.id ? '#00C853' : '#666'}
-              />
-              <Text style={[
-                styles.tabLabel,
-                activeTab === tab.id && styles.tabLabelActive
-              ]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Tab Content */}
-        {renderTabContent()}
-
-        {/* Leave Group Button */}
-        {membership && membership.role !== 'owner' && (
-          <TouchableOpacity 
-            style={styles.leaveButton}
-            onPress={handleLeaveGroup}
+      {/* Fixed Tab Bar */}
+      <View style={styles.tabsContainer}>
+        {tabs.map((tab) => (
+          <TouchableOpacity
+            key={tab.id}
+            style={[styles.tab, activeTab === tab.id && styles.tabActive]}
+            onPress={() => setActiveTab(tab.id)}
           >
-            <Ionicons name="exit-outline" size={20} color="#FF5252" />
-            <Text style={styles.leaveButtonText}>Sair do Grupo</Text>
+            <Ionicons
+              name={tab.icon as any}
+              size={20}
+              color={activeTab === tab.id ? '#84CC16' : '#64748b'}
+            />
+            <Text style={[
+              styles.tabLabel,
+              activeTab === tab.id && styles.tabLabelActive
+            ]}>
+              {tab.label}
+            </Text>
           </TouchableOpacity>
-        )}
+        ))}
+      </View>
 
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      {/* Tab Content - Scrollable for non-chat tabs */}
+      {activeTab === 'chat' ? (
+        renderTabContent()
+      ) : (
+        <ScrollView
+          style={styles.content}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
+              colors={['#84CC16']}
+              tintColor="#84CC16"
+            />
+          }
+        >
+          {/* Cover Image */}
+          {group?.coverImageUrl && (
+            <Image
+              source={{ uri: group.coverImageUrl }}
+              style={styles.coverImage}
+            />
+          )}
+
+          {/* Tab Content */}
+          {renderTabContent()}
+
+          {/* Leave Group Button */}
+          {membership && membership.role !== 'owner' && (
+            <TouchableOpacity 
+              style={styles.leaveButton}
+              onPress={handleLeaveGroup}
+            >
+              <Ionicons name="exit-outline" size={20} color="#ef4444" />
+              <Text style={styles.leaveButtonText}>Sair do Grupo</Text>
+            </TouchableOpacity>
+          )}
+
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
+
+      {/* Create Post FAB - Only visible on Feed tab */}
+      {activeTab === 'feed' && (
+        <TouchableOpacity 
+          style={styles.createPostFab}
+          onPress={handleCreatePost}
+        >
+          <Ionicons name="add" size={28} color="#0F172A" />
+        </TouchableOpacity>
+      )}
 
       {/* Create Training Modal */}
       <Modal
@@ -564,7 +799,7 @@ export default function GroupDetailScreen() {
                 style={styles.trainingOption}
                 onPress={() => handleCreateTraining('funcional')}
               >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#FFEBEE' }]}>
+                <View style={[styles.trainingOptionIcon, { backgroundColor: '#FF572220' }]}>
                   <Ionicons name="barbell-outline" size={28} color="#FF5722" />
                 </View>
                 <Text style={styles.trainingOptionLabel}>Funcional</Text>
@@ -575,7 +810,7 @@ export default function GroupDetailScreen() {
                 style={styles.trainingOption}
                 onPress={() => handleCreateTraining('caminhada_trail')}
               >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#E8F5E9' }]}>
+                <View style={[styles.trainingOptionIcon, { backgroundColor: '#4CAF5020' }]}>
                   <Ionicons name="trail-sign-outline" size={28} color="#4CAF50" />
                 </View>
                 <Text style={styles.trainingOptionLabel}>Caminhada/Trail</Text>
@@ -586,7 +821,7 @@ export default function GroupDetailScreen() {
                 style={styles.trainingOption}
                 onPress={() => handleCreateTraining('yoga')}
               >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#F3E5F5' }]}>
+                <View style={[styles.trainingOptionIcon, { backgroundColor: '#9C27B020' }]}>
                   <Ionicons name="body-outline" size={28} color="#9C27B0" />
                 </View>
                 <Text style={styles.trainingOptionLabel}>Yoga</Text>
@@ -597,7 +832,7 @@ export default function GroupDetailScreen() {
                 style={styles.trainingOption}
                 onPress={() => handleCreateTraining('lutas')}
               >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#FFEBEE' }]}>
+                <View style={[styles.trainingOptionIcon, { backgroundColor: '#F4433620' }]}>
                   <Ionicons name="hand-left-outline" size={28} color="#F44336" />
                 </View>
                 <Text style={styles.trainingOptionLabel}>Lutas</Text>
@@ -621,7 +856,7 @@ export default function GroupDetailScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0F172A',
   },
   loadingContainer: {
     flex: 1,
@@ -633,12 +868,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1E293B',
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
   },
   backButton: {
     padding: 4,
+  },
+  headerLogo: {
+    width: 32,
+    height: 32,
+    marginLeft: 8,
   },
   headerTitleContainer: {
     flex: 1,
@@ -647,7 +887,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#F8FAFC',
   },
   headerMeta: {
     flexDirection: 'row',
@@ -657,7 +897,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#94A3B8',
   },
   menuButton: {
     padding: 4,
@@ -666,48 +906,50 @@ const styles = StyleSheet.create({
     padding: 4,
     marginRight: 8,
   },
-  content: {
-    flex: 1,
-  },
-  coverImage: {
-    width: '100%',
-    height: 150,
-    backgroundColor: '#334155',
-  },
+  
+  // Quick Actions - Only Members
   quickActionsContainer: {
-    flexDirection: 'row',
-    backgroundColor: '#1e293b',
-    paddingVertical: 16,
-    paddingHorizontal: 8,
+    backgroundColor: '#1E293B',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
   },
-  quickAction: {
-    flex: 1,
+  membersButton: {
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    backgroundColor: '#0F172A',
+    borderRadius: 12,
+    padding: 12,
   },
-  quickActionIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+  membersIconContainer: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#84CC1620',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
   },
-  quickActionLabel: {
-    fontSize: 12,
+  membersInfo: {
+    flex: 1,
+    marginLeft: 12,
+  },
+  membersLabel: {
+    fontSize: 14,
     fontWeight: '600',
-    color: '#f8fafc',
+    color: '#F8FAFC',
   },
-  quickActionValue: {
-    fontSize: 11,
-    color: '#94a3b8',
+  membersCount: {
+    fontSize: 13,
+    color: '#84CC16',
+    fontWeight: '700',
     marginTop: 2,
   },
+  
+  // Fixed Tab Bar
   tabsContainer: {
     flexDirection: 'row',
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1E293B',
     borderBottomWidth: 1,
     borderBottomColor: '#334155',
   },
@@ -721,19 +963,30 @@ const styles = StyleSheet.create({
   },
   tabActive: {
     borderBottomWidth: 2,
-    borderBottomColor: '#00C853',
+    borderBottomColor: '#84CC16',
   },
   tabLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#64748B',
   },
   tabLabelActive: {
-    color: '#00C853',
+    color: '#84CC16',
+  },
+  
+  content: {
+    flex: 1,
+  },
+  coverImage: {
+    width: '100%',
+    height: 150,
+    backgroundColor: '#334155',
   },
   tabContent: {
     padding: 16,
   },
+  
+  // Empty State
   emptyState: {
     alignItems: 'center',
     paddingVertical: 40,
@@ -741,17 +994,19 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#f8fafc',
+    color: '#F8FAFC',
     marginTop: 12,
   },
   emptyText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#94A3B8',
     marginTop: 4,
     textAlign: 'center',
   },
+  
+  // Post Card
   postCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -774,16 +1029,16 @@ const styles = StyleSheet.create({
   authorName: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#f8fafc',
+    color: '#F8FAFC',
   },
   postTime: {
     fontSize: 12,
-    color: '#64748b',
+    color: '#64748B',
     marginTop: 2,
   },
   postContent: {
     fontSize: 15,
-    color: '#f8fafc',
+    color: '#F8FAFC',
     lineHeight: 22,
   },
   postImage: {
@@ -808,28 +1063,32 @@ const styles = StyleSheet.create({
   },
   postActionText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#94A3B8',
   },
+  
+  // Create Training Button
   createTrainingButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(34, 197, 94, 0.15)',
+    backgroundColor: '#84CC1615',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
     borderWidth: 2,
-    borderColor: '#00C853',
+    borderColor: '#84CC16',
     borderStyle: 'dashed',
     gap: 8,
   },
   createTrainingText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#00C853',
+    color: '#84CC16',
   },
+  
+  // Treino Card
   treinoCard: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -852,11 +1111,11 @@ const styles = StyleSheet.create({
   treinoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#f8fafc',
+    color: '#F8FAFC',
   },
   treinoDate: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#94A3B8',
     marginTop: 2,
   },
   treinoParticipants: {
@@ -866,7 +1125,7 @@ const styles = StyleSheet.create({
   },
   treinoParticipantsText: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#94A3B8',
   },
   treinoLocation: {
     flexDirection: 'row',
@@ -876,10 +1135,10 @@ const styles = StyleSheet.create({
   },
   treinoLocationText: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: '#94A3B8',
   },
   participarButton: {
-    backgroundColor: '#00C853',
+    backgroundColor: '#84CC16',
     borderRadius: 8,
     paddingVertical: 12,
     alignItems: 'center',
@@ -888,74 +1147,219 @@ const styles = StyleSheet.create({
   participarButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#fff',
+    color: '#0F172A',
   },
-  rankingPreviewCard: {
-    backgroundColor: '#1e293b',
+  
+  // Ranking Card - No translucent background
+  rankingCard: {
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     padding: 20,
     alignItems: 'center',
   },
-  rankingPreviewHeader: {
+  rankingHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     marginBottom: 12,
   },
-  rankingPreviewTitle: {
+  rankingTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#F8FAFC',
   },
-  rankingPreviewText: {
+  rankingText: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#94A3B8',
     textAlign: 'center',
     marginBottom: 16,
   },
-  rankingPreviewButton: {
+  rankingButton: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
-  rankingPreviewButtonText: {
+  rankingButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#00C853',
+    color: '#84CC16',
   },
-  chatPreviewCard: {
-    backgroundColor: '#1e293b',
-    borderRadius: 12,
-    padding: 20,
+  
+  // Chat Tab Styles
+  chatTabContainer: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+  },
+  chatLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
   },
-  chatPreviewHeader: {
+  messagesList: {
+    padding: 16,
+    paddingBottom: 8,
+  },
+  messageContainer: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    marginBottom: 12,
+    marginBottom: 8,
+    alignItems: 'flex-end',
   },
-  chatPreviewTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#f8fafc',
+  ownMessageContainer: {
+    justifyContent: 'flex-end',
   },
-  chatPreviewText: {
-    fontSize: 14,
-    color: '#94a3b8',
-    textAlign: 'center',
-    marginBottom: 16,
+  avatarContainer: {
+    width: 36,
+    marginRight: 8,
   },
-  chatPreviewButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  chatAvatar: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#334155',
   },
-  chatPreviewButtonText: {
-    fontSize: 15,
+  avatarPlaceholder: {
+    width: 36,
+    height: 36,
+  },
+  messageBubble: {
+    maxWidth: '75%',
+    borderRadius: 16,
+    padding: 12,
+  },
+  ownMessageBubble: {
+    backgroundColor: '#84CC16',
+    borderBottomRightRadius: 4,
+  },
+  otherMessageBubble: {
+    backgroundColor: '#1E293B',
+    borderBottomLeftRadius: 4,
+  },
+  senderName: {
+    fontSize: 12,
     fontWeight: '600',
-    color: '#00C853',
+    color: '#84CC16',
+    marginBottom: 4,
   },
+  replyContainer: {
+    backgroundColor: '#0F172A40',
+    borderRadius: 8,
+    padding: 8,
+    marginBottom: 8,
+    borderLeftWidth: 2,
+    borderLeftColor: '#84CC16',
+  },
+  replyName: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#84CC16',
+  },
+  replyContent: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  messageText: {
+    fontSize: 15,
+    color: '#F8FAFC',
+    lineHeight: 20,
+  },
+  ownMessageText: {
+    color: '#0F172A',
+  },
+  messageImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 8,
+    marginTop: 8,
+  },
+  messageTime: {
+    fontSize: 10,
+    color: '#94A3B8',
+    marginTop: 4,
+    alignSelf: 'flex-end',
+  },
+  ownMessageTime: {
+    color: '#0F172A80',
+  },
+  replyButton: {
+    padding: 8,
+    marginLeft: 4,
+  },
+  replyPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#1E293B',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+  },
+  replyPreviewContent: {
+    flex: 1,
+    marginRight: 12,
+  },
+  replyPreviewName: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#84CC16',
+  },
+  replyPreviewText: {
+    fontSize: 13,
+    color: '#94A3B8',
+    marginTop: 2,
+  },
+  chatInputContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    backgroundColor: '#1E293B',
+    padding: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#334155',
+    gap: 8,
+  },
+  attachButton: {
+    padding: 8,
+  },
+  chatInput: {
+    flex: 1,
+    backgroundColor: '#0F172A',
+    borderRadius: 20,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    fontSize: 15,
+    color: '#F8FAFC',
+    maxHeight: 100,
+  },
+  sendButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#84CC16',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sendButtonDisabled: {
+    backgroundColor: '#334155',
+  },
+  
+  // Create Post FAB
+  createPostFab: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#84CC16',
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+  },
+  
+  // Leave Button
   leaveButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -964,23 +1368,25 @@ const styles = StyleSheet.create({
     marginTop: 20,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: 'rgba(239, 68, 68, 0.1)',
+    backgroundColor: '#EF444415',
     borderWidth: 1,
-    borderColor: '#ef4444',
+    borderColor: '#EF4444',
     gap: 8,
   },
   leaveButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#FF5252',
+    color: '#EF4444',
   },
+  
+  // Modal
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'flex-end',
   },
   trainingModalContent: {
-    backgroundColor: '#1e293b',
+    backgroundColor: '#1E293B',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -997,12 +1403,12 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#f8fafc',
+    color: '#F8FAFC',
     textAlign: 'center',
   },
   modalSubtitle: {
     fontSize: 14,
-    color: '#94a3b8',
+    color: '#94A3B8',
     textAlign: 'center',
     marginTop: 4,
     marginBottom: 20,
@@ -1014,7 +1420,7 @@ const styles = StyleSheet.create({
   },
   trainingOption: {
     width: '48%',
-    backgroundColor: '#0f172a',
+    backgroundColor: '#0F172A',
     borderRadius: 12,
     padding: 16,
     marginHorizontal: '1%',
@@ -1032,11 +1438,11 @@ const styles = StyleSheet.create({
   trainingOptionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f8fafc',
+    color: '#F8FAFC',
   },
   trainingOptionDesc: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: '#94A3B8',
     marginTop: 4,
     textAlign: 'center',
   },
@@ -1048,6 +1454,6 @@ const styles = StyleSheet.create({
   cancelModalButtonText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#94a3b8',
+    color: '#94A3B8',
   },
 });

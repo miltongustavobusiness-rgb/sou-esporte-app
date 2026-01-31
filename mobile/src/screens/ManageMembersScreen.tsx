@@ -18,6 +18,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { apiRequest } from '../config/api';
+import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'ManageMembers'>;
@@ -68,6 +69,7 @@ export default function ManageMembersScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
   const { groupId, groupName, userRole } = route.params;
+  const { user } = useApp();
 
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,8 +85,9 @@ export default function ManageMembersScreen() {
   const canManage = userRole === 'owner' || userRole === 'admin';
 
   const loadMembers = useCallback(async () => {
+    if (!user?.id) return;
     try {
-      const result = await apiRequest('groups.getMembers', { groupId });
+      const result = await apiRequest('getGroupMembers', { groupId, userId: user.id }, 'query');
       setMembers(result || []);
     } catch (error) {
       console.error('Error loading members:', error);
@@ -92,7 +95,7 @@ export default function ManageMembersScreen() {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   useEffect(() => {
     loadMembers();
