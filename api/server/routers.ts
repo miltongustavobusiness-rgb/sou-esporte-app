@@ -1815,17 +1815,35 @@ export const appRouter = router({
         groupId: z.number(),
       }))
       .query(async ({ input }) => {
+        console.log('[mobile.getGroupMembers] Request:', input);
+        
         const user = await db.getUserById(input.userId);
         if (!user) {
+          console.log('[mobile.getGroupMembers] User not found');
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
         }
         
-        const membership = await db.getGroupMembership(input.groupId, input.userId);
-        if (!membership) {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
+        // Check if user is owner of the group (bypass membership check)
+        const group = await db.getGroupById(input.groupId);
+        if (!group) {
+          console.log('[mobile.getGroupMembers] Group not found');
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Grupo não encontrado' });
         }
         
-        return db.getGroupMembers(input.groupId);
+        const isOwner = group.ownerId === input.userId;
+        console.log('[mobile.getGroupMembers] isOwner:', isOwner);
+        
+        if (!isOwner) {
+          const membership = await db.getGroupMembership(input.groupId, input.userId);
+          if (!membership) {
+            console.log('[mobile.getGroupMembers] User is not a member');
+            throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
+          }
+        }
+        
+        const members = await db.getGroupMembers(input.groupId);
+        console.log('[mobile.getGroupMembers] Found members:', members.length);
+        return members;
       }),
     
     // Get pending invites (mobile)

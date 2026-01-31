@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,6 +11,11 @@ import {
   Modal,
   ActivityIndicator,
   RefreshControl,
+  Animated,
+  Dimensions,
+  PanResponder,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +24,9 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { apiRequest } from '../config/api';
 import { useApp } from '../contexts/AppContext';
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+const SHEET_HEIGHT = SCREEN_HEIGHT * 0.85;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type RouteProps = RouteProp<RootStackParamList, 'ManageMembers'>;
@@ -82,12 +90,79 @@ export default function ManageMembersScreen() {
   const [selectedMember, setSelectedMember] = useState<Member | null>(null);
   const [showMemberModal, setShowMemberModal] = useState(false);
 
+  // Animation for bottom sheet
+  const translateY = useRef(new Animated.Value(SHEET_HEIGHT)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+
   const canManage = userRole === 'owner' || userRole === 'admin';
+
+  // Animate sheet in on mount
+  useEffect(() => {
+    Animated.parallel([
+      Animated.spring(translateY, {
+        toValue: 0,
+        useNativeDriver: true,
+        tension: 65,
+        friction: 11,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
+
+  const closeSheet = useCallback(() => {
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: SHEET_HEIGHT,
+        duration: 250,
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 200,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      navigation.goBack();
+    });
+  }, [navigation, translateY, overlayOpacity]);
+
+  // Pan responder for drag to close
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 10;
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          translateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+          closeSheet();
+        } else {
+          Animated.spring(translateY, {
+            toValue: 0,
+            useNativeDriver: true,
+            tension: 65,
+            friction: 11,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const loadMembers = useCallback(async () => {
     if (!user?.id) return;
     try {
+      console.log('[ManageMembersScreen] Loading members for group:', groupId, 'user:', user.id);
       const result = await apiRequest('getGroupMembers', { groupId, userId: user.id }, 'query');
+      console.log('[ManageMembersScreen] Members loaded:', result?.length || 0);
       setMembers(result || []);
     } catch (error) {
       console.error('Error loading members:', error);
@@ -126,14 +201,14 @@ export default function ManageMembersScreen() {
     }
   };
 
-  const handleInviteUser = async (user: SearchUser) => {
+  const handleInviteUser = async (targetUser: SearchUser) => {
     try {
       await apiRequest('groups.inviteUser', {
         groupId,
-        userId: user.id,
+        userId: targetUser.id,
       });
-      Alert.alert('Sucesso', `Convite enviado para ${user.name}`);
-      setSearchResults(prev => prev.filter(u => u.id !== user.id));
+      Alert.alert('Sucesso', `Convite enviado para ${targetUser.name}`);
+      setSearchResults(prev => prev.filter(u => u.id !== targetUser.id));
     } catch (error: any) {
       Alert.alert('Erro', error.message || 'Erro ao enviar convite');
     }
@@ -273,242 +348,221 @@ export default function ManageMembersScreen() {
     </View>
   );
 
-  if (loading) {
-    return (
-      <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={COLORS.primary} />
-        </View>
-      </SafeAreaView>
-    );
-  }
-
   return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
-        </TouchableOpacity>
-        <View style={styles.headerTitleContainer}>
-          <Text style={styles.headerTitle}>Membros</Text>
-          <Text style={styles.headerSubtitle}>{groupName} • {members.length} membros</Text>
+    <View style={styles.container}>
+      {/* Overlay */}
+      <Animated.View 
+        style={[styles.overlay, { opacity: overlayOpacity }]}
+      >
+        <TouchableOpacity 
+          style={styles.overlayTouchable} 
+          activeOpacity={1} 
+          onPress={closeSheet}
+        />
+      </Animated.View>
+
+      {/* Bottom Sheet */}
+      <Animated.View 
+        style={[
+          styles.sheet,
+          { transform: [{ translateY }] }
+        ]}
+      >
+        {/* Drag Handle */}
+        <View {...panResponder.panHandlers} style={styles.dragHandleContainer}>
+          <View style={styles.dragHandle} />
         </View>
+
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.headerTitleContainer}>
+            <Text style={styles.headerTitle}>Membros</Text>
+            <Text style={styles.headerSubtitle}>{groupName} • {members.length} membros</Text>
+          </View>
+          <TouchableOpacity onPress={closeSheet} style={styles.closeButton}>
+            <Ionicons name="close" size={24} color={COLORS.text} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Add Members Button */}
         {canManage && (
           <TouchableOpacity 
-            style={styles.addButton}
-            onPress={() => setShowInviteModal(true)}
+            style={styles.addMembersButton}
+            onPress={() => navigation.navigate('InviteMembers', { groupId, groupName })}
           >
-            <Ionicons name="person-add" size={22} color={COLORS.primary} />
+            <Ionicons name="person-add" size={20} color={COLORS.primary} />
+            <Text style={styles.addMembersButtonText}>Adicionar Membros</Text>
           </TouchableOpacity>
         )}
-      </View>
 
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <Ionicons name="search" size={20} color={COLORS.textMuted} />
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Buscar membro..."
-          value={searchQuery}
-          onChangeText={setSearchQuery}
-          placeholderTextColor={COLORS.textMuted}
-        />
-        {searchQuery.length > 0 && (
-          <TouchableOpacity onPress={() => setSearchQuery('')}>
-            <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
-          </TouchableOpacity>
-        )}
-      </View>
-
-      {/* Add Members Button - Visible inside the list */}
-      {canManage && (
-        <TouchableOpacity 
-          style={styles.addMembersButton}
-          onPress={() => navigation.navigate('InviteMembers', { groupId, groupName })}
-        >
-          <Ionicons name="person-add" size={20} color={COLORS.primary} />
-          <Text style={styles.addMembersButtonText}>Adicionar Membros</Text>
-        </TouchableOpacity>
-      )}
-
-      {/* Members List */}
-      <FlatList
-        data={filteredMembers}
-        renderItem={renderMember}
-        keyExtractor={item => item.id.toString()}
-        contentContainerStyle={styles.listContent}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
+        {/* Search Bar */}
+        <View style={styles.searchContainer}>
+          <Ionicons name="search" size={20} color={COLORS.textMuted} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Buscar membro..."
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholderTextColor={COLORS.textMuted}
           />
-        }
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Ionicons name="people-outline" size={48} color={COLORS.textMuted} />
-            <Text style={styles.emptyText}>Nenhum membro encontrado</Text>
-          </View>
-        }
-      />
-
-      {/* Invite Modal */}
-      <Modal
-        visible={showInviteModal}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setShowInviteModal(false)}
-      >
-        <SafeAreaView style={styles.modalContainer}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Convidar Membros</Text>
-            <TouchableOpacity onPress={() => setShowInviteModal(false)}>
-              <Ionicons name="close" size={24} color={COLORS.text} />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <Ionicons name="close-circle" size={20} color={COLORS.textMuted} />
             </TouchableOpacity>
-          </View>
-
-          <View style={styles.modalSearchContainer}>
-            <Ionicons name="search" size={20} color={COLORS.textMuted} />
-            <TextInput
-              style={styles.searchInput}
-              placeholder="Buscar usuário por nome ou @username..."
-              value={inviteSearch}
-              onChangeText={(text) => {
-                setInviteSearch(text);
-                searchUsers(text);
-              }}
-              placeholderTextColor={COLORS.textMuted}
-              autoFocus
-            />
-          </View>
-
-          {searchingUsers ? (
-            <ActivityIndicator size="small" color={COLORS.primary} style={{ marginTop: 20 }} />
-          ) : (
-            <FlatList
-              data={searchResults}
-              renderItem={renderSearchResult}
-              keyExtractor={item => item.id.toString()}
-              contentContainerStyle={styles.searchResultsList}
-              ListEmptyComponent={
-                inviteSearch.length >= 2 ? (
-                  <View style={styles.emptyContainer}>
-                    <Text style={styles.emptyText}>Nenhum usuário encontrado</Text>
-                  </View>
-                ) : (
-                  <View style={styles.emptyContainer}>
-                    <Ionicons name="search" size={48} color={COLORS.textMuted} />
-                    <Text style={styles.emptyText}>Digite pelo menos 2 caracteres</Text>
-                  </View>
-                )
-              }
-            />
           )}
-        </SafeAreaView>
-      </Modal>
+        </View>
 
-      {/* Member Actions Modal */}
-      <Modal
-        visible={showMemberModal}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setShowMemberModal(false)}
-      >
-        <TouchableOpacity 
-          style={styles.modalOverlay}
-          activeOpacity={1}
-          onPress={() => setShowMemberModal(false)}
-        >
-          <View style={styles.actionSheet}>
-            {selectedMember && (
-              <>
-                <View style={styles.actionSheetHeader}>
-                  <Image
-                    source={{ 
-                      uri: selectedMember.user.photoUrl || 'https://via.placeholder.com/50' 
-                    }}
-                    style={styles.actionSheetPhoto}
-                  />
-                  <Text style={styles.actionSheetName}>{selectedMember.user.name}</Text>
-                  <Text style={styles.actionSheetUsername}>@{selectedMember.user.username}</Text>
-                </View>
-
-                <Text style={styles.actionSectionTitle}>Alterar Cargo</Text>
-                <View style={styles.rolesGrid}>
-                  {['admin', 'moderator', 'member'].map(role => {
-                    const roleInfo = ROLE_LABELS[role];
-                    const isSelected = selectedMember.role === role;
-                    return (
-                      <TouchableOpacity
-                        key={role}
-                        style={[
-                          styles.roleOption,
-                          isSelected && { backgroundColor: roleInfo.color }
-                        ]}
-                        onPress={() => handleUpdateRole(selectedMember, role)}
-                      >
-                        <Ionicons 
-                          name={roleInfo.icon as any} 
-                          size={20} 
-                          color={isSelected ? '#fff' : roleInfo.color} 
-                        />
-                        <Text style={[
-                          styles.roleOptionLabel,
-                          isSelected && { color: '#fff' }
-                        ]}>
-                          {roleInfo.label}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                <TouchableOpacity
-                  style={styles.actionItem}
-                  onPress={() => handleToggleTrainingPermission(selectedMember)}
-                >
-                  <Ionicons 
-                    name={selectedMember.canCreateTraining ? 'checkmark-circle' : 'add-circle-outline'} 
-                    size={22} 
-                    color={selectedMember.canCreateTraining ? COLORS.primary : COLORS.textMuted} 
-                  />
-                  <Text style={styles.actionItemText}>
-                    {selectedMember.canCreateTraining 
-                      ? 'Pode criar treinos ✓' 
-                      : 'Permitir criar treinos'}
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionItem, styles.dangerAction]}
-                  onPress={() => handleRemoveMember(selectedMember)}
-                >
-                  <Ionicons name="person-remove" size={22} color={COLORS.danger} />
-                  <Text style={[styles.actionItemText, { color: COLORS.danger }]}>
-                    Remover do grupo
-                  </Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.cancelButton}
-                  onPress={() => setShowMemberModal(false)}
-                >
-                  <Text style={styles.cancelButtonText}>Cancelar</Text>
-                </TouchableOpacity>
-              </>
-            )}
+        {/* Members List */}
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={COLORS.primary} />
           </View>
-        </TouchableOpacity>
-      </Modal>
-    </SafeAreaView>
+        ) : (
+          <FlatList
+            data={filteredMembers}
+            renderItem={renderMember}
+            keyExtractor={item => item.id.toString()}
+            contentContainerStyle={styles.listContent}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={handleRefresh}
+                tintColor={COLORS.primary}
+              />
+            }
+            ListEmptyComponent={
+              <View style={styles.emptyContainer}>
+                <Ionicons name="people-outline" size={48} color={COLORS.textMuted} />
+                <Text style={styles.emptyText}>Nenhum membro encontrado</Text>
+              </View>
+            }
+          />
+        )}
+
+        {/* Member Action Modal */}
+        <Modal
+          visible={showMemberModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowMemberModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => setShowMemberModal(false)}
+          >
+            <View style={styles.actionSheet}>
+              {selectedMember && (
+                <>
+                  <View style={styles.actionSheetHeader}>
+                    <Image
+                      source={{ uri: selectedMember.user.photoUrl || 'https://via.placeholder.com/60' }}
+                      style={styles.actionSheetPhoto}
+                    />
+                    <Text style={styles.actionSheetName}>{selectedMember.user.name}</Text>
+                    <Text style={styles.actionSheetUsername}>@{selectedMember.user.username}</Text>
+                  </View>
+
+                  <Text style={styles.actionSectionTitle}>Alterar Cargo</Text>
+                  <View style={styles.rolesGrid}>
+                    {['admin', 'moderator', 'member'].map(role => {
+                      const roleInfo = ROLE_LABELS[role];
+                      const isSelected = selectedMember.role === role;
+                      return (
+                        <TouchableOpacity
+                          key={role}
+                          style={[
+                            styles.roleOption,
+                            isSelected && { backgroundColor: roleInfo.color + '30' }
+                          ]}
+                          onPress={() => handleUpdateRole(selectedMember, role)}
+                        >
+                          <Ionicons 
+                            name={roleInfo.icon as any} 
+                            size={20} 
+                            color={isSelected ? roleInfo.color : COLORS.textMuted} 
+                          />
+                          <Text style={[
+                            styles.roleOptionLabel,
+                            isSelected && { color: roleInfo.color }
+                          ]}>
+                            {roleInfo.label}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+
+                  <TouchableOpacity
+                    style={styles.actionItem}
+                    onPress={() => handleToggleTrainingPermission(selectedMember)}
+                  >
+                    <Ionicons 
+                      name={selectedMember.canCreateTraining ? 'checkmark-circle' : 'add-circle-outline'} 
+                      size={22} 
+                      color={selectedMember.canCreateTraining ? COLORS.primary : COLORS.textMuted} 
+                    />
+                    <Text style={styles.actionItemText}>
+                      {selectedMember.canCreateTraining ? 'Pode criar treinos' : 'Permitir criar treinos'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={[styles.actionItem, styles.dangerAction]}
+                    onPress={() => handleRemoveMember(selectedMember)}
+                  >
+                    <Ionicons name="person-remove" size={22} color={COLORS.danger} />
+                    <Text style={[styles.actionItemText, { color: COLORS.danger }]}>
+                      Remover do grupo
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.cancelButton}
+                    onPress={() => setShowMemberModal(false)}
+                  >
+                    <Text style={styles.cancelButtonText}>Cancelar</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      </Animated.View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  overlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: COLORS.overlay,
+  },
+  overlayTouchable: {
+    flex: 1,
+  },
+  sheet: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: SHEET_HEIGHT,
     backgroundColor: COLORS.background,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+  },
+  dragHandleContainer: {
+    alignItems: 'center',
+    paddingVertical: 12,
+  },
+  dragHandle: {
+    width: 40,
+    height: 4,
+    backgroundColor: COLORS.cardBorder,
+    borderRadius: 2,
   },
   loadingContainer: {
     flex: 1,
@@ -518,21 +572,17 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: COLORS.card,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.cardBorder,
   },
-  backButton: {
-    padding: 4,
-  },
   headerTitleContainer: {
     flex: 1,
-    marginLeft: 12,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '700',
     color: COLORS.text,
   },
@@ -541,8 +591,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 2,
   },
-  addButton: {
-    padding: 8,
+  closeButton: {
+    padding: 4,
   },
   addMembersButton: {
     flexDirection: 'row',
@@ -550,6 +600,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: COLORS.card,
     marginHorizontal: 16,
+    marginTop: 12,
     marginBottom: 8,
     paddingVertical: 14,
     borderRadius: 12,
@@ -655,40 +706,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: COLORS.textMuted,
     marginTop: 12,
-  },
-  modalContainer: {
-    flex: 1,
-    backgroundColor: COLORS.background,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    backgroundColor: COLORS.card,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.cardBorder,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: COLORS.text,
-  },
-  modalSearchContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.card,
-    marginHorizontal: 16,
-    marginVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-  },
-  searchResultsList: {
-    padding: 16,
-    paddingTop: 0,
   },
   searchResultCard: {
     flexDirection: 'row',

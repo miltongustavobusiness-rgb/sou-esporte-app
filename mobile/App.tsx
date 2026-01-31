@@ -245,7 +245,11 @@ export default function App() {
               <Stack.Screen 
                 name="ManageMembers" 
                 component={ManageMembersScreen} 
-                options={{ animation: 'slide_from_right' }}
+                options={{ 
+                  presentation: 'transparentModal',
+                  animation: 'slide_from_bottom',
+                  headerShown: false,
+                }}
               />
               <Stack.Screen 
                 name="GroupRanking" 
