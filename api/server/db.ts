@@ -3055,8 +3055,8 @@ export async function getUserGroups(userId: number): Promise<any[]> {
     // Get groups where user is a member OR where user is the owner
     const result = await db.execute(
       sql`SELECT DISTINCT
-            g.id, g.name, g.description, g.coverImage, g.modality, g.city, g.state,
-            g.isPrivate, g.requiresApproval, g.memberCount, g.ownerId, g.status,
+            g.id, g.name, g.description, g.logoUrl, g.coverUrl, g.groupType, g.city, g.state,
+            g.privacy, g.requiresApproval, g.memberCount, g.ownerId, g.status,
             g.createdAt, g.updatedAt,
             COALESCE(gm.role, CASE WHEN g.ownerId = ${userId} THEN 'owner' ELSE NULL END) as role
           FROM \`groups\` g
@@ -3073,13 +3073,15 @@ export async function getUserGroups(userId: number): Promise<any[]> {
       id: r.id,
       name: r.name,
       description: r.description,
-      coverImage: r.coverImage,
-      modality: r.modality,
+      logoUrl: r.logoUrl,
+      coverUrl: r.coverUrl,
+      groupType: r.groupType,
       city: r.city,
       state: r.state,
-      isPrivate: r.isPrivate,
+      privacy: r.privacy,
+      isPrivate: r.privacy === 'private',
       requiresApproval: r.requiresApproval,
-      memberCount: r.memberCount,
+      memberCount: r.memberCount || 1,
       ownerId: r.ownerId,
       status: r.status,
       createdAt: r.createdAt,
