@@ -3095,59 +3095,76 @@ export async function getUserGroups(userId: number): Promise<any[]> {
 }
 
 export async function joinGroup(groupId: number, userId: number): Promise<boolean> {
-  const db = await getDb();
-  if (!db) return false;
-  
   try {
+    const db = await getDb();
+    if (!db) return false;
+    
+    console.log(`[db.joinGroup] Joining group ${groupId} for user ${userId}`);
+    
     const group = await getGroupById(groupId);
-    if (!group) return false;
+    if (!group) {
+      console.log('[db.joinGroup] Group not found');
+      return false;
+    }
     
     const status = group.requiresApproval ? 'pending' : 'active';
     
-    await db.insert(groupMembers).values({
-      groupId,
-      userId,
-      role: 'member',
-      status,
-    });
+    // Use raw SQL to avoid enum issues
+    await db.execute(
+      sql`INSERT INTO group_members (groupId, userId, role, status, joinedAt)
+          VALUES (${groupId}, ${userId}, 'member', ${status}, NOW())`
+    );
     
     if (status === 'active') {
-      await db.update(groups)
-        .set({ memberCount: sql`${groups.memberCount} + 1` })
-        .where(eq(groups.id, groupId));
+      await db.execute(
+        sql`UPDATE \`groups\` SET memberCount = memberCount + 1 WHERE id = ${groupId}`
+      );
     }
     
+    console.log('[db.joinGroup] User joined successfully');
     return true;
-  } catch (error) {
-    console.error("[DB] Error joining group:", error);
+  } catch (error: any) {
+    console.error("[db.joinGroup] Error:", error.message);
     return false;
   }
 }
 
 export async function leaveGroup(groupId: number, userId: number): Promise<boolean> {
-  const db = await getDb();
-  if (!db) return false;
-  
   try {
-    // Check if user is owner
-    const membership = await db.select()
-      .from(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)))
-      .limit(1);
+    const db = await getDb();
+    if (!db) return false;
     
-    if (membership.length === 0) return false;
-    if (membership[0].role === 'owner') return false; // Owner can't leave
+    console.log(`[db.leaveGroup] Leaving group ${groupId} for user ${userId}`);
     
-    await db.delete(groupMembers)
-      .where(and(eq(groupMembers.groupId, groupId), eq(groupMembers.userId, userId)));
+    // Check if user is owner using raw SQL
+    const membershipResult = await db.execute(
+      sql`SELECT role FROM group_members WHERE groupId = ${groupId} AND userId = ${userId} LIMIT 1`
+    );
     
-    await db.update(groups)
-      .set({ memberCount: sql`GREATEST(${groups.memberCount} - 1, 0)` })
-      .where(eq(groups.id, groupId));
+    const membership = (membershipResult as any)[0] || [];
+    if (membership.length === 0) {
+      console.log('[db.leaveGroup] User is not a member');
+      return false;
+    }
+    if (membership[0].role === 'owner') {
+      console.log('[db.leaveGroup] Owner cannot leave');
+      return false;
+    }
     
+    // Delete membership
+    await db.execute(
+      sql`DELETE FROM group_members WHERE groupId = ${groupId} AND userId = ${userId}`
+    );
+    
+    // Update member count
+    await db.execute(
+      sql`UPDATE \`groups\` SET memberCount = GREATEST(memberCount - 1, 0) WHERE id = ${groupId}`
+    );
+    
+    console.log('[db.leaveGroup] User left successfully');
     return true;
-  } catch (error) {
-    console.error("[DB] Error leaving group:", error);
+  } catch (error: any) {
+    console.error("[db.leaveGroup] Error:", error.message);
     return false;
   }
 }
@@ -5268,31 +5285,55 @@ export async function updateGroupMember(
   userId: number, 
   data: { role?: string; canCreateTraining?: boolean }
 ): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  
-  await db.update(groupMembers)
-    .set(data as any)
-    .where(and(
-      eq(groupMembers.groupId, groupId),
-      eq(groupMembers.userId, userId)
-    ));
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log(`[db.updateGroupMember] Updating member ${userId} in group ${groupId}:`, data);
+    
+    // Build SET clause dynamically
+    const setClauses: string[] = [];
+    if (data.role !== undefined) {
+      setClauses.push(`role = '${data.role}'`);
+    }
+    if (data.canCreateTraining !== undefined) {
+      setClauses.push(`canCreateTraining = ${data.canCreateTraining ? 1 : 0}`);
+    }
+    
+    if (setClauses.length === 0) return;
+    
+    await db.execute(
+      sql.raw(`UPDATE group_members SET ${setClauses.join(', ')}, updatedAt = NOW() WHERE groupId = ${groupId} AND userId = ${userId}`)
+    );
+    
+    console.log('[db.updateGroupMember] Member updated successfully');
+  } catch (error: any) {
+    console.error('[db.updateGroupMember] Error:', error.message);
+  }
 }
 
 // Remove group member
 export async function removeGroupMember(groupId: number, userId: number): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  
-  await db.delete(groupMembers)
-    .where(and(
-      eq(groupMembers.groupId, groupId),
-      eq(groupMembers.userId, userId)
-    ));
-  
-  await db.update(groups)
-    .set({ memberCount: sql`GREATEST(${groups.memberCount} - 1, 0)` })
-    .where(eq(groups.id, groupId));
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log(`[db.removeGroupMember] Removing member ${userId} from group ${groupId}`);
+    
+    // Delete membership
+    await db.execute(
+      sql`DELETE FROM group_members WHERE groupId = ${groupId} AND userId = ${userId}`
+    );
+    
+    // Update member count
+    await db.execute(
+      sql`UPDATE \`groups\` SET memberCount = GREATEST(memberCount - 1, 0) WHERE id = ${groupId}`
+    );
+    
+    console.log('[db.removeGroupMember] Member removed successfully');
+  } catch (error: any) {
+    console.error('[db.removeGroupMember] Error:', error.message);
+  }
 }
 
 // ==================== GROUP INVITES ====================
@@ -5422,32 +5463,52 @@ export async function searchUsersNotInGroup(groupId: number, query: string): Pro
 // ==================== GROUP RANKING ====================
 
 export async function getGroupRanking(groupId: number, modality: string): Promise<any[]> {
-  const db = await getDb();
-  if (!db) return [];
-  
-  const result = await db.select({
-    ranking: groupRankings,
-    user: {
-      id: users.id,
-      name: users.name,
-      username: users.username,
-      photoUrl: users.photoUrl,
-    },
-  })
-  .from(groupRankings)
-  .innerJoin(users, eq(groupRankings.userId, users.id))
-  .where(and(
-    eq(groupRankings.groupId, groupId),
-    eq(groupRankings.modality, modality as any)
-  ))
-  .orderBy(desc(groupRankings.points))
-  .limit(100);
-  
-  return result.map((r, index) => ({
-    ...r.ranking,
-    user: r.user,
-    position: index + 1,
-  }));
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    
+    console.log(`[db.getGroupRanking] Getting ranking for group ${groupId}, modality ${modality}`);
+    
+    // Use raw SQL to avoid enum issues
+    const result = await db.execute(
+      sql`SELECT 
+            gr.id, gr.groupId, gr.userId, gr.modality, gr.points, gr.totalParticipations,
+            gr.totalDistance, gr.totalDuration, gr.avgPace, gr.bestPace, gr.lastActivityAt,
+            u.id as user_id, u.name as user_name, u.username as user_username, u.photoUrl as user_photoUrl
+          FROM group_rankings gr
+          INNER JOIN users u ON gr.userId = u.id
+          WHERE gr.groupId = ${groupId} AND gr.modality = ${modality}
+          ORDER BY gr.points DESC
+          LIMIT 100`
+    );
+    
+    const rows = (result as any)[0] || [];
+    console.log(`[db.getGroupRanking] Found ${rows.length} rankings`);
+    
+    return rows.map((r: any, index: number) => ({
+      id: r.id,
+      groupId: r.groupId,
+      userId: r.userId,
+      modality: r.modality,
+      points: r.points,
+      totalParticipations: r.totalParticipations,
+      totalDistance: r.totalDistance,
+      totalDuration: r.totalDuration,
+      avgPace: r.avgPace,
+      bestPace: r.bestPace,
+      lastActivityAt: r.lastActivityAt,
+      user: {
+        id: r.user_id,
+        name: r.user_name,
+        username: r.user_username,
+        photoUrl: r.user_photoUrl,
+      },
+      position: index + 1,
+    }));
+  } catch (error: any) {
+    console.error('[db.getGroupRanking] Error:', error.message);
+    return [];
+  }
 }
 
 async function updateGroupRanking(
@@ -5884,34 +5945,61 @@ export async function completeFightTraining(
 // ==================== GROUP CHAT ====================
 
 export async function getGroupMessages(groupId: number, limit: number, before?: number): Promise<any[]> {
-  const db = await getDb();
-  if (!db) return [];
-  
-  let query = db.select({
-    message: groupMessages,
-    sender: {
-      id: users.id,
-      name: users.name,
-      username: users.username,
-      photoUrl: users.photoUrl,
-    },
-  })
-  .from(groupMessages)
-  .innerJoin(users, eq(groupMessages.senderId, users.id))
-  .where(and(
-    eq(groupMessages.groupId, groupId),
-    eq(groupMessages.status, 'active'),
-    before ? sql`${groupMessages.id} < ${before}` : sql`1=1`
-  ))
-  .orderBy(desc(groupMessages.createdAt))
-  .limit(limit);
-  
-  const result = await query;
-  
-  return result.map(r => ({
-    ...r.message,
-    sender: r.sender,
-  })).reverse();
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    
+    console.log(`[db.getGroupMessages] Getting messages for groupId=${groupId}, limit=${limit}, before=${before}`);
+    
+    // Use raw SQL to avoid Drizzle issues with enum columns
+    let query;
+    if (before) {
+      query = sql`SELECT 
+            gm.id, gm.groupId, gm.senderId, gm.content, gm.imageUrl, gm.replyToId, gm.status, gm.createdAt,
+            u.id as sender_id, u.name as sender_name, u.username as sender_username, u.photoUrl as sender_photoUrl
+          FROM group_messages gm
+          INNER JOIN users u ON gm.senderId = u.id
+          WHERE gm.groupId = ${groupId} AND gm.status = 'active' AND gm.id < ${before}
+          ORDER BY gm.createdAt DESC
+          LIMIT ${limit}`;
+    } else {
+      query = sql`SELECT 
+            gm.id, gm.groupId, gm.senderId, gm.content, gm.imageUrl, gm.replyToId, gm.status, gm.createdAt,
+            u.id as sender_id, u.name as sender_name, u.username as sender_username, u.photoUrl as sender_photoUrl
+          FROM group_messages gm
+          INNER JOIN users u ON gm.senderId = u.id
+          WHERE gm.groupId = ${groupId} AND gm.status = 'active'
+          ORDER BY gm.createdAt DESC
+          LIMIT ${limit}`;
+    }
+    
+    const result = await db.execute(query);
+    const rows = (result as any)[0] || [];
+    
+    console.log(`[db.getGroupMessages] Found ${rows.length} messages`);
+    
+    // Map and reverse to get chronological order
+    return rows.map((r: any) => ({
+      id: r.id,
+      groupId: r.groupId,
+      senderId: r.senderId,
+      content: r.content,
+      imageUrl: r.imageUrl,
+      replyToId: r.replyToId,
+      status: r.status,
+      createdAt: r.createdAt,
+      sender: {
+        id: r.sender_id,
+        name: r.sender_name,
+        username: r.sender_username,
+        photoUrl: r.sender_photoUrl,
+      },
+    })).reverse();
+  } catch (error: any) {
+    console.error('[db.getGroupMessages] Error:', error.message);
+    console.error('[db.getGroupMessages] Stack:', error.stack);
+    return [];
+  }
 }
 
 export async function sendGroupMessage(message: {
@@ -5921,36 +6009,68 @@ export async function sendGroupMessage(message: {
   imageUrl?: string;
   replyToId?: number;
 }): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
-  
-  const result = await db.insert(groupMessages).values(message as any);
-  return result[0].insertId;
+  try {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    
+    console.log('[db.sendGroupMessage] Sending message:', message);
+    
+    // Use raw SQL to avoid schema mismatch
+    const result = await db.execute(
+      sql`INSERT INTO group_messages (groupId, senderId, content, imageUrl, replyToId, status, createdAt)
+          VALUES (${message.groupId}, ${message.senderId}, ${message.content}, ${message.imageUrl || null}, ${message.replyToId || null}, 'active', NOW())`
+    );
+    
+    const insertId = (result as any)[0]?.insertId;
+    console.log('[db.sendGroupMessage] Message sent with ID:', insertId);
+    
+    return insertId;
+  } catch (error: any) {
+    console.error('[db.sendGroupMessage] Error:', error.message);
+    console.error('[db.sendGroupMessage] Stack:', error.stack);
+    throw error;
+  }
 }
 
 export async function getGroupMessage(messageId: number): Promise<any | null> {
-  const db = await getDb();
-  if (!db) return null;
-  
-  const result = await db.select()
-    .from(groupMessages)
-    .where(eq(groupMessages.id, messageId))
-    .limit(1);
-  
-  return result[0] || null;
+  try {
+    const db = await getDb();
+    if (!db) return null;
+    
+    console.log('[db.getGroupMessage] Getting message:', messageId);
+    
+    // Use raw SQL
+    const result = await db.execute(
+      sql`SELECT id, groupId, senderId, content, imageUrl, replyToId, status, createdAt
+          FROM group_messages
+          WHERE id = ${messageId}
+          LIMIT 1`
+    );
+    
+    const rows = (result as any)[0] || [];
+    return rows[0] || null;
+  } catch (error: any) {
+    console.error('[db.getGroupMessage] Error:', error.message);
+    return null;
+  }
 }
 
 export async function deleteGroupMessage(messageId: number, deletedBy: number): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  
-  await db.update(groupMessages)
-    .set({
-      status: 'deleted',
-      deletedBy,
-      deletedAt: new Date(),
-    } as any)
-    .where(eq(groupMessages.id, messageId));
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log('[db.deleteGroupMessage] Deleting message:', messageId);
+    
+    // Use raw SQL
+    await db.execute(
+      sql`UPDATE group_messages SET status = 'deleted', deletedBy = ${deletedBy}, deletedAt = NOW() WHERE id = ${messageId}`
+    );
+    
+    console.log('[db.deleteGroupMessage] Message deleted');
+  } catch (error: any) {
+    console.error('[db.deleteGroupMessage] Error:', error.message);
+  }
 }
 
 

@@ -36,7 +36,10 @@ interface FollowingUser {
 export default function InviteMembersScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RouteProps>();
-  const { groupId, groupName } = route.params || { groupId: '', groupName: 'Grupo' };
+  const params = route.params || { groupId: 0, groupName: 'Grupo' };
+  // Ensure groupId is always a number
+  const groupId = typeof params.groupId === 'string' ? parseInt(params.groupId, 10) || 0 : (params.groupId || 0);
+  const groupName = params.groupName || 'Grupo';
   const { user } = useApp();
   
   const [inviteLink, setInviteLink] = useState('');
@@ -61,9 +64,10 @@ export default function InviteMembersScreen() {
       }
       try {
         // Load following users and pending invites in parallel
+        // Only load pending invites if groupId is valid
         const [followingResult, invitesResult] = await Promise.all([
           api.getFollowing(user.id, 50, 0),
-          apiRequest('getPendingInvites', { groupId, userId: user.id }, 'query').catch(() => []),
+          groupId > 0 ? apiRequest('getPendingInvites', { groupId: Number(groupId), userId: user.id }, 'query').catch(() => []) : Promise.resolve([]),
         ]);
         
         // Create map of pending invites
@@ -97,8 +101,11 @@ export default function InviteMembersScreen() {
   const handleInviteUser = async (userId: number) => {
     setInvitingUser(userId);
     try {
+      if (!groupId || groupId <= 0) {
+        throw new Error('ID do grupo inválido');
+      }
       const result = await apiRequest('inviteUser', {
-        groupId,
+        groupId: Number(groupId),
         userId: user!.id,
         targetUserId: userId,
       });
