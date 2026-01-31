@@ -1225,6 +1225,39 @@ export const appRouter = router({
         return { success: true, url };
       }),
     
+    // Upload file for chat (images, videos, documents)
+    uploadFile: publicProcedure
+      .input(z.object({
+        base64: z.string(),
+        filename: z.string(),
+        contentType: z.string(),
+        folder: z.enum(['chat', 'group-chat', 'posts']).default('chat'),
+      }))
+      .mutation(async ({ input }) => {
+        const { storagePut } = await import('./storage');
+        
+        // Validate file size (max 50MB for videos, 10MB for images, 25MB for documents)
+        const buffer = Buffer.from(input.base64, 'base64');
+        const maxSize = input.contentType.startsWith('video/') ? 50 * 1024 * 1024 :
+                        input.contentType.startsWith('image/') ? 10 * 1024 * 1024 :
+                        25 * 1024 * 1024;
+        
+        if (buffer.length > maxSize) {
+          throw new TRPCError({ 
+            code: 'BAD_REQUEST', 
+            message: 'Arquivo muito grande. Limite: ' + (maxSize / 1024 / 1024) + 'MB' 
+          });
+        }
+        
+        // Generate unique filename
+        const uniqueFilename = `${input.folder}/${Date.now()}-${nanoid(8)}-${input.filename}`;
+        
+        // Upload to S3
+        const { url } = await storagePut(uniqueFilename, buffer, input.contentType);
+        
+        return { success: true, url };
+      }),
+    
     // Check-in athlete at event
     checkIn: publicProcedure
       .input(z.object({ registrationId: z.number() }))
@@ -1951,6 +1984,9 @@ export const appRouter = router({
         groupId: z.number(),
         content: z.string(),
         imageUrl: z.string().optional(),
+        videoUrl: z.string().optional(),
+        fileUrl: z.string().optional(),
+        fileName: z.string().optional(),
         replyToId: z.number().optional(),
       }))
       .mutation(async ({ input }) => {
@@ -1969,6 +2005,9 @@ export const appRouter = router({
           senderId: input.userId,
           content: input.content,
           imageUrl: input.imageUrl,
+          videoUrl: input.videoUrl,
+          fileUrl: input.fileUrl,
+          fileName: input.fileName,
           replyToId: input.replyToId,
         });
         
@@ -2001,6 +2040,55 @@ export const appRouter = router({
         }
         
         await db.deleteGroupMessage(input.messageId, input.userId);
+        return { success: true };
+      }),
+    
+    // Add reaction to group message (mobile)
+    addGroupMessageReaction: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        messageId: z.number(),
+        emoji: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const message = await db.getGroupMessage(input.messageId);
+        if (!message) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Mensagem não encontrada' });
+        }
+        
+        const membership = await db.getGroupMembership(message.groupId, input.userId);
+        if (!membership) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
+        }
+        
+        const id = await db.addMessageReaction(input.messageId, input.userId, input.emoji);
+        return { id };
+      }),
+    
+    // Remove reaction from group message (mobile)
+    removeGroupMessageReaction: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        messageId: z.number(),
+        emoji: z.string(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const message = await db.getGroupMessage(input.messageId);
+        if (!message) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Mensagem não encontrada' });
+        }
+        
+        await db.removeMessageReaction(input.messageId, input.userId, input.emoji);
         return { success: true };
       }),
     

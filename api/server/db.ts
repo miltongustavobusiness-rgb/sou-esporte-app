@@ -6147,6 +6147,9 @@ export async function sendGroupMessage(message: {
   senderId: number;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
   replyToId?: number;
 }): Promise<number> {
   try {
@@ -6155,10 +6158,17 @@ export async function sendGroupMessage(message: {
     
     console.log('[db.sendGroupMessage] Sending message:', message);
     
-    // Use raw SQL to avoid schema mismatch
+    // Use sql.raw() for proper parameter binding
+    const imageVal = message.imageUrl ? `'${message.imageUrl.replace(/'/g, "''")}'` : 'NULL';
+    const videoVal = message.videoUrl ? `'${message.videoUrl.replace(/'/g, "''")}'` : 'NULL';
+    const fileVal = message.fileUrl ? `'${message.fileUrl.replace(/'/g, "''")}'` : 'NULL';
+    const fileNameVal = message.fileName ? `'${message.fileName.replace(/'/g, "''")}'` : 'NULL';
+    const replyVal = message.replyToId ? message.replyToId : 'NULL';
+    const contentVal = message.content.replace(/'/g, "''");
+    
     const result = await db.execute(
-      sql`INSERT INTO group_messages (groupId, senderId, content, imageUrl, replyToId, status, createdAt)
-          VALUES (${message.groupId}, ${message.senderId}, ${message.content}, ${message.imageUrl || null}, ${message.replyToId || null}, 'active', NOW())`
+      sql.raw(`INSERT INTO group_messages (groupId, senderId, content, imageUrl, videoUrl, fileUrl, fileName, replyToId, status, createdAt)
+          VALUES (${message.groupId}, ${message.senderId}, '${contentVal}', ${imageVal}, ${videoVal}, ${fileVal}, ${fileNameVal}, ${replyVal}, 'active', NOW())`)
     );
     
     const insertId = (result as any)[0]?.insertId;
@@ -6204,7 +6214,7 @@ export async function deleteGroupMessage(messageId: number, deletedBy: number): 
     
     // Use raw SQL
     await db.execute(
-      sql`UPDATE group_messages SET status = 'deleted', deletedBy = ${deletedBy}, deletedAt = NOW() WHERE id = ${messageId}`
+      sql.raw(`UPDATE group_messages SET status = 'deleted', deletedBy = ${deletedBy}, deletedAt = NOW() WHERE id = ${messageId}`)
     );
     
     console.log('[db.deleteGroupMessage] Message deleted');
@@ -6213,6 +6223,131 @@ export async function deleteGroupMessage(messageId: number, deletedBy: number): 
   }
 }
 
+export async function getGroupMessages(groupId: number, limit: number = 50, beforeId?: number): Promise<any[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    
+    console.log('[db.getGroupMessages] Getting messages for group:', groupId);
+    
+    let query = `
+      SELECT 
+        gm.id, gm.groupId, gm.senderId, gm.content, 
+        gm.imageUrl, gm.videoUrl, gm.fileUrl, gm.fileName,
+        gm.replyToId, gm.status, gm.createdAt,
+        u.name as senderName, u.photoUrl as senderPhotoUrl,
+        rm.id as replyMessageId, rm.content as replyContent, rm.senderId as replySenderId,
+        ru.name as replyUserName
+      FROM group_messages gm
+      LEFT JOIN users u ON gm.senderId = u.id
+      LEFT JOIN group_messages rm ON gm.replyToId = rm.id
+      LEFT JOIN users ru ON rm.senderId = ru.id
+      WHERE gm.groupId = ${groupId} AND gm.status = 'active'
+    `;
+    
+    if (beforeId) {
+      query += ` AND gm.id < ${beforeId}`;
+    }
+    
+    query += ` ORDER BY gm.createdAt DESC LIMIT ${limit}`;
+    
+    const result = await db.execute(sql.raw(query));
+    const rows = (result as any)[0] || [];
+    
+    // Get reactions for each message
+    const messagesWithReactions = await Promise.all(
+      rows.map(async (msg: any) => {
+        const reactions = await getMessageReactions(msg.id);
+        return {
+          ...msg,
+          reactions,
+          replyTo: msg.replyMessageId ? {
+            id: msg.replyMessageId,
+            content: msg.replyContent,
+            senderId: msg.replySenderId,
+            senderName: msg.replyUserName
+          } : null
+        };
+      })
+    );
+    
+    console.log('[db.getGroupMessages] Found messages:', messagesWithReactions.length);
+    return messagesWithReactions.reverse(); // Return in chronological order
+  } catch (error: any) {
+    console.error('[db.getGroupMessages] Error:', error.message);
+    return [];
+  }
+}
+
+export async function getMessageReactions(messageId: number): Promise<any[]> {
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    
+    const result = await db.execute(
+      sql.raw(`
+        SELECT gmr.id, gmr.emoji, gmr.userId, u.name as userName, u.photoUrl as userPhotoUrl
+        FROM group_message_reactions gmr
+        LEFT JOIN users u ON gmr.userId = u.id
+        WHERE gmr.messageId = ${messageId}
+        ORDER BY gmr.createdAt ASC
+      `)
+    );
+    
+    return (result as any)[0] || [];
+  } catch (error: any) {
+    console.error('[db.getMessageReactions] Error:', error.message);
+    return [];
+  }
+}
+
+export async function addMessageReaction(messageId: number, userId: number, emoji: string): Promise<number> {
+  try {
+    const db = await getDb();
+    if (!db) throw new Error("Database not available");
+    
+    console.log('[db.addMessageReaction] Adding reaction:', { messageId, userId, emoji });
+    
+    // Check if user already reacted with this emoji
+    const existing = await db.execute(
+      sql.raw(`SELECT id FROM group_message_reactions WHERE messageId = ${messageId} AND userId = ${userId} AND emoji = '${emoji}'`)
+    );
+    
+    const existingRows = (existing as any)[0] || [];
+    if (existingRows.length > 0) {
+      console.log('[db.addMessageReaction] Reaction already exists');
+      return existingRows[0].id;
+    }
+    
+    const result = await db.execute(
+      sql.raw(`INSERT INTO group_message_reactions (messageId, userId, emoji, createdAt) VALUES (${messageId}, ${userId}, '${emoji}', NOW())`)
+    );
+    
+    const insertId = (result as any)[0]?.insertId;
+    console.log('[db.addMessageReaction] Reaction added with ID:', insertId);
+    return insertId;
+  } catch (error: any) {
+    console.error('[db.addMessageReaction] Error:', error.message);
+    throw error;
+  }
+}
+
+export async function removeMessageReaction(messageId: number, userId: number, emoji: string): Promise<void> {
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log('[db.removeMessageReaction] Removing reaction:', { messageId, userId, emoji });
+    
+    await db.execute(
+      sql.raw(`DELETE FROM group_message_reactions WHERE messageId = ${messageId} AND userId = ${userId} AND emoji = '${emoji}'`)
+    );
+    
+    console.log('[db.removeMessageReaction] Reaction removed');
+  } catch (error: any) {
+    console.error('[db.removeMessageReaction] Error:', error.message);
+  }
+}
 
 // ============================================
 // TRAININGS - Treinos gerais

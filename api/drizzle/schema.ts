@@ -1543,6 +1543,9 @@ export const groupMessages = mysqlTable("group_messages", {
   
   // Media
   imageUrl: text("imageUrl"),
+  videoUrl: text("videoUrl"),
+  fileUrl: text("fileUrl"),
+  fileName: varchar("fileName", { length: 255 }),
   
   // Reply to
   replyToId: int("replyToId"),
@@ -1594,3 +1597,21 @@ export const groupRankings = mysqlTable("group_rankings", {
 
 export type GroupRanking = typeof groupRankings.$inferSelect;
 export type InsertGroupRanking = typeof groupRankings.$inferInsert;
+
+
+/**
+ * Group Message Reactions - Reações às mensagens do chat do grupo
+ */
+export const groupMessageReactions = mysqlTable("group_message_reactions", {
+  id: int("id").autoincrement().primaryKey(),
+  
+  messageId: int("messageId").notNull(),
+  userId: int("userId").notNull(),
+  
+  emoji: varchar("emoji", { length: 10 }).notNull(), // e.g., "❤️", "😂", "👍"
+  
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type GroupMessageReaction = typeof groupMessageReactions.$inferSelect;
+export type InsertGroupMessageReaction = typeof groupMessageReactions.$inferInsert;

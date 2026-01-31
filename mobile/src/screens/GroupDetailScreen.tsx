@@ -17,7 +17,12 @@ import {
   Platform,
   Share,
   ImageBackground,
+  Pressable,
+  ActionSheetIOS,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
+import { Video, ResizeMode } from 'expo-av';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -75,20 +80,29 @@ interface Message {
   id: number;
   content: string;
   imageUrl?: string;
+  videoUrl?: string;
+  fileUrl?: string;
+  fileName?: string;
   senderId: number;
+  senderName: string;
+  senderPhotoUrl: string | null;
   createdAt: string;
-  sender: {
-    id: number;
-    name: string;
-    username: string;
-    photoUrl: string | null;
-  };
   replyTo?: {
     id: number;
     content: string;
+    senderId: number;
     senderName: string;
   };
+  reactions?: {
+    id: number;
+    emoji: string;
+    userId: number;
+    userName: string;
+    userPhotoUrl: string | null;
+  }[];
 }
+
+const REACTION_EMOJIS = ['❤️', '😂', '😮', '😢', '😡', '👍'];
 
 const MODALITY_ICONS: Record<string, { icon: string; color: string }> = {
   corrida: { icon: 'walk-outline', color: '#2196F3' },
@@ -181,6 +195,10 @@ export default function GroupDetailScreen() {
   const [sending, setSending] = useState(false);
   const [inputText, setInputText] = useState('');
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [selectedMessage, setSelectedMessage] = useState<Message | null>(null);
+  const [showMessageOptions, setShowMessageOptions] = useState(false);
+  const [uploadingMedia, setUploadingMedia] = useState(false);
+  const isReactingRef = useRef(false);
   
   // Post options modal state
   const [showOptionsModal, setShowOptionsModal] = useState(false);
@@ -418,15 +436,19 @@ export default function GroupDetailScreen() {
   }, [navigation]);
 
   // Send message handler
-  const handleSendMessage = async () => {
-    if (!inputText.trim() || sending) return;
+  const handleSendMessage = async (mediaUrl?: string, mediaType?: 'image' | 'video' | 'file', fileName?: string) => {
+    if ((!inputText.trim() && !mediaUrl) || sending) return;
     
     setSending(true);
     try {
       await apiRequest('sendGroupMessage', {
         userId: user?.id,
         groupId,
-        content: inputText.trim(),
+        content: inputText.trim() || '',
+        imageUrl: mediaType === 'image' ? mediaUrl : undefined,
+        videoUrl: mediaType === 'video' ? mediaUrl : undefined,
+        fileUrl: mediaType === 'file' ? mediaUrl : undefined,
+        fileName: fileName,
         replyToId: replyingTo?.id,
       });
       setInputText('');
@@ -437,6 +459,246 @@ export default function GroupDetailScreen() {
     } finally {
       setSending(false);
     }
+  };
+
+  // Handle attachment button press
+  const handleAttachmentPress = () => {
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancelar', 'Tirar Foto', 'Escolher da Galeria', 'Enviar Vídeo', 'Enviar Arquivo'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) handleTakePhoto();
+          else if (buttonIndex === 2) handlePickImage();
+          else if (buttonIndex === 3) handlePickVideo();
+          else if (buttonIndex === 4) handlePickFile();
+        }
+      );
+    } else {
+      Alert.alert(
+        'Enviar Anexo',
+        'Escolha uma opção',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Tirar Foto', onPress: handleTakePhoto },
+          { text: 'Escolher da Galeria', onPress: handlePickImage },
+          { text: 'Enviar Vídeo', onPress: handlePickVideo },
+          { text: 'Enviar Arquivo', onPress: handlePickFile },
+        ]
+      );
+    }
+  };
+
+  // Handle take photo
+  const handleTakePhoto = async () => {
+    const { status } = await ImagePicker.requestCameraPermissionsAsync();
+    if (status !== 'granted') {
+      Alert.alert('Permissão necessária', 'Precisamos de acesso à câmera para tirar fotos.');
+      return;
+    }
+
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadAndSendMedia(result.assets[0].uri, 'image');
+    }
+  };
+
+  // Handle pick image from gallery
+  const handlePickImage = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      quality: 0.8,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadAndSendMedia(result.assets[0].uri, 'image');
+    }
+  };
+
+  // Handle pick video
+  const handlePickVideo = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      allowsEditing: true,
+      quality: 0.8,
+      videoMaxDuration: 60,
+    });
+
+    if (!result.canceled && result.assets[0]) {
+      await uploadAndSendMedia(result.assets[0].uri, 'video');
+    }
+  };
+
+  // Handle pick file
+  const handlePickFile = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: '*/*',
+        copyToCacheDirectory: true,
+      });
+
+      if (!result.canceled && result.assets[0]) {
+        await uploadAndSendMedia(result.assets[0].uri, 'file', result.assets[0].name);
+      }
+    } catch (error) {
+      console.error('Error picking file:', error);
+    }
+  };
+
+  // Upload media and send message
+  const uploadAndSendMedia = async (uri: string, type: 'image' | 'video' | 'file', fileName?: string) => {
+    setUploadingMedia(true);
+    try {
+      // Read file as base64
+      const response = await fetch(uri);
+      const blob = await response.blob();
+      
+      const reader = new FileReader();
+      const base64Promise = new Promise<string>((resolve, reject) => {
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1];
+          resolve(base64);
+        };
+        reader.onerror = reject;
+      });
+      reader.readAsDataURL(blob);
+      const base64 = await base64Promise;
+      
+      const fileExtension = uri.split('.').pop() || (type === 'image' ? 'jpg' : type === 'video' ? 'mp4' : 'bin');
+      const mimeType = type === 'image' ? 'image/jpeg' : type === 'video' ? 'video/mp4' : 'application/octet-stream';
+      const finalFileName = fileName || `${type}_${Date.now()}.${fileExtension}`;
+
+      // Upload to server
+      const uploadResult = await apiRequest('uploadFile', {
+        base64,
+        filename: finalFileName,
+        contentType: mimeType,
+        folder: 'group-chat',
+      });
+      
+      if (uploadResult?.url) {
+        await handleSendMessage(uploadResult.url, type, finalFileName);
+      }
+    } catch (error: any) {
+      Alert.alert('Erro', 'Não foi possível enviar o arquivo');
+      console.error('Upload error:', error);
+    } finally {
+      setUploadingMedia(false);
+    }
+  };
+
+  // Handle long press on message
+  const handleMessageLongPress = (message: Message) => {
+    setSelectedMessage(message);
+    setShowMessageOptions(true);
+  };
+
+  // Handle reaction selection
+  const handleReaction = async (emoji: string) => {
+    if (!selectedMessage || !user?.id) return;
+    
+    isReactingRef.current = true;
+    
+    try {
+      const existingReaction = selectedMessage.reactions?.find(
+        r => r.userId === user.id && r.emoji === emoji
+      );
+      
+      if (existingReaction) {
+        // Remove reaction
+        await apiRequest('removeGroupMessageReaction', {
+          reactionId: existingReaction.id,
+          userId: user.id,
+        });
+        
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === selectedMessage.id) {
+            return {
+              ...msg,
+              reactions: (msg.reactions || []).filter(r => r.id !== existingReaction.id)
+            };
+          }
+          return msg;
+        }));
+      } else {
+        // Add reaction
+        const result = await apiRequest('addGroupMessageReaction', {
+          messageId: selectedMessage.id,
+          userId: user.id,
+          emoji,
+        });
+        
+        setMessages(prev => prev.map(msg => {
+          if (msg.id === selectedMessage.id) {
+            const otherReactions = (msg.reactions || []).filter(r => r.userId !== user.id);
+            return {
+              ...msg,
+              reactions: [...otherReactions, {
+                id: result?.id || Date.now(),
+                emoji,
+                userId: user.id,
+                userName: user.name || '',
+                userPhotoUrl: user.photoUrl || null,
+              }]
+            };
+          }
+          return msg;
+        }));
+      }
+    } catch (error) {
+      console.error('Error handling reaction:', error);
+      Alert.alert('Erro', 'Não foi possível reagir à mensagem');
+    } finally {
+      setShowMessageOptions(false);
+      setSelectedMessage(null);
+      setTimeout(() => {
+        isReactingRef.current = false;
+      }, 2000);
+    }
+  };
+
+  // Handle delete message
+  const handleDeleteMessage = async () => {
+    if (!selectedMessage || !user?.id) return;
+    
+    if (selectedMessage.senderId !== user.id) {
+      Alert.alert('Erro', 'Você só pode apagar suas próprias mensagens');
+      return;
+    }
+    
+    Alert.alert(
+      'Apagar Mensagem',
+      'Tem certeza que deseja apagar esta mensagem?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Apagar',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await apiRequest('deleteGroupMessage', {
+                messageId: selectedMessage.id,
+                userId: user.id,
+              });
+              loadMessages();
+            } catch (error) {
+              Alert.alert('Erro', 'Não foi possível apagar a mensagem');
+            }
+          },
+        },
+      ]
+    );
+    
+    setShowMessageOptions(false);
+    setSelectedMessage(null);
   };
 
   // Render Feed Tab - Same as global feed
@@ -688,73 +950,124 @@ export default function GroupDetailScreen() {
     const renderMessage = ({ item, index }: { item: Message; index: number }) => {
       const isOwnMessage = item.senderId === user?.id;
       const showAvatar = !isOwnMessage && (index === 0 || messages[index - 1]?.senderId !== item.senderId);
+      const avatarUrl = item.senderPhotoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(item.senderName)}&background=a3e635&color=0a0a0a`;
       
       return (
-        <View style={[
-          styles.messageContainer,
-          isOwnMessage && styles.ownMessageContainer
-        ]}>
-          {!isOwnMessage && (
-            <View style={styles.avatarContainer}>
-              {showAvatar ? (
-                <Image
-                  source={{ uri: item.sender.photoUrl || 'https://via.placeholder.com/36' }}
-                  style={styles.chatAvatar}
-                />
-              ) : (
-                <View style={styles.avatarPlaceholder} />
-              )}
-            </View>
-          )}
-          
+        <Pressable
+          onLongPress={() => handleMessageLongPress(item)}
+          delayLongPress={300}
+        >
           <View style={[
-            styles.messageBubble,
-            isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+            styles.messageContainer,
+            isOwnMessage && styles.ownMessageContainer
           ]}>
-            {!isOwnMessage && showAvatar && (
-              <Text style={styles.senderName}>{item.sender.name}</Text>
-            )}
-            
-            {item.replyTo && (
-              <View style={styles.replyContainer}>
-                <Text style={styles.replyName}>{item.replyTo.senderName}</Text>
-                <Text style={styles.replyContent} numberOfLines={1}>
-                  {item.replyTo.content}
-                </Text>
+            {!isOwnMessage && (
+              <View style={styles.avatarContainer}>
+                {showAvatar ? (
+                  <Image
+                    source={{ uri: avatarUrl }}
+                    style={styles.chatAvatar}
+                  />
+                ) : (
+                  <View style={styles.avatarPlaceholder} />
+                )}
               </View>
             )}
             
-            <Text style={[
-              styles.messageText,
-              isOwnMessage && styles.ownMessageText
-            ]}>
-              {item.content}
-            </Text>
-            
-            {item.imageUrl && (
-              <Image
-                source={{ uri: item.imageUrl }}
-                style={styles.messageImage}
-              />
-            )}
-            
-            <Text style={[
-              styles.messageTime,
-              isOwnMessage && styles.ownMessageTime
-            ]}>
-              {formatTime(item.createdAt)}
-            </Text>
+            <View>
+              <View style={[
+                styles.messageBubble,
+                isOwnMessage ? styles.ownMessageBubble : styles.otherMessageBubble
+              ]}>
+                {!isOwnMessage && showAvatar && (
+                  <Text style={styles.senderName}>{item.senderName}</Text>
+                )}
+                
+                {item.replyTo && (
+                  <View style={styles.replyContainer}>
+                    <Text style={styles.replyName}>{item.replyTo.senderName}</Text>
+                    <Text style={styles.replyContent} numberOfLines={1}>
+                      {item.replyTo.content}
+                    </Text>
+                  </View>
+                )}
+                
+                {item.content ? (
+                  <Text style={[
+                    styles.messageText,
+                    isOwnMessage && styles.ownMessageText
+                  ]}>
+                    {item.content}
+                  </Text>
+                ) : null}
+                
+                {item.imageUrl && (
+                  <TouchableOpacity onPress={() => {/* TODO: Open full screen image */}}>
+                    <Image
+                      source={{ uri: item.imageUrl }}
+                      style={styles.messageImage}
+                      resizeMode="cover"
+                    />
+                  </TouchableOpacity>
+                )}
+                
+                {item.videoUrl && (
+                  <TouchableOpacity 
+                    style={styles.videoContainer}
+                    onPress={() => {/* TODO: Open video player */}}
+                  >
+                    <Video
+                      source={{ uri: item.videoUrl }}
+                      style={styles.messageVideo}
+                      resizeMode={ResizeMode.COVER}
+                      shouldPlay={false}
+                      isMuted={true}
+                    />
+                    <View style={styles.videoPlayOverlay}>
+                      <Ionicons name="play-circle" size={48} color="#fff" />
+                    </View>
+                  </TouchableOpacity>
+                )}
+                
+                {item.fileUrl && (
+                  <TouchableOpacity 
+                    style={styles.fileContainer}
+                    onPress={() => {/* TODO: Open/download file */}}
+                  >
+                    <Ionicons name="document-outline" size={24} color={isOwnMessage ? COLORS.background : COLORS.primary} />
+                    <Text style={[
+                      styles.fileName,
+                      isOwnMessage && styles.ownFileName
+                    ]} numberOfLines={1}>
+                      {item.fileName || 'Arquivo'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+                
+                <Text style={[
+                  styles.messageTime,
+                  isOwnMessage && styles.ownMessageTime
+                ]}>
+                  {formatTime(item.createdAt)}
+                </Text>
+              </View>
+              
+              {/* Reactions */}
+              {item.reactions && item.reactions.length > 0 && (
+                <View style={[
+                  styles.reactionsContainer,
+                  isOwnMessage ? styles.ownReactions : styles.otherReactions
+                ]}>
+                  {item.reactions.map((reaction, idx) => (
+                    <View key={`${reaction.id}-${idx}`} style={styles.reactionBubble}>
+                      <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                    </View>
+                  ))}
+                </View>
+              )}
+            </View>
           </View>
-          
-          {!isOwnMessage && (
-            <TouchableOpacity 
-              style={styles.replyButton}
-              onPress={() => setReplyingTo(item)}
-            >
-              <Ionicons name="arrow-undo-outline" size={16} color={COLORS.textMuted} />
-            </TouchableOpacity>
-          )}
-        </View>
+        </Pressable>
       );
     };
 
@@ -764,6 +1077,12 @@ export default function GroupDetailScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
+        {/* Safety Banner */}
+        <View style={styles.safetyBanner}>
+          <Ionicons name="shield-checkmark" size={14} color={COLORS.primary} />
+          <Text style={styles.safetyText}>Chat protegido • Segure para reagir</Text>
+        </View>
+        
         {chatLoading ? (
           <View style={styles.chatLoadingContainer}>
             <ActivityIndicator size="large" color={COLORS.primary} />
@@ -794,7 +1113,7 @@ export default function GroupDetailScreen() {
           <View style={styles.replyPreview}>
             <View style={styles.replyPreviewContent}>
               <Text style={styles.replyPreviewName}>
-                Respondendo a {replyingTo.sender.name}
+                Respondendo a {replyingTo.senderName}
               </Text>
               <Text style={styles.replyPreviewText} numberOfLines={1}>
                 {replyingTo.content}
@@ -808,8 +1127,16 @@ export default function GroupDetailScreen() {
 
         {/* Input Area */}
         <View style={styles.chatInputContainer}>
-          <TouchableOpacity style={styles.attachButton}>
-            <Ionicons name="add-circle-outline" size={24} color={COLORS.textSecondary} />
+          <TouchableOpacity 
+            style={styles.attachButton}
+            onPress={handleAttachmentPress}
+            disabled={uploadingMedia}
+          >
+            {uploadingMedia ? (
+              <ActivityIndicator size="small" color={COLORS.textSecondary} />
+            ) : (
+              <Ionicons name="add-circle-outline" size={28} color={COLORS.textSecondary} />
+            )}
           </TouchableOpacity>
           
           <TextInput
@@ -818,13 +1145,13 @@ export default function GroupDetailScreen() {
             value={inputText}
             onChangeText={setInputText}
             multiline
-            maxLength={1000}
+            maxLength={2000}
             placeholderTextColor={COLORS.textMuted}
           />
           
           <TouchableOpacity 
             style={[styles.sendButton, (!inputText.trim() || sending) && styles.sendButtonDisabled]}
-            onPress={handleSendMessage}
+            onPress={() => handleSendMessage()}
             disabled={!inputText.trim() || sending}
           >
             {sending ? (
@@ -834,6 +1161,80 @@ export default function GroupDetailScreen() {
             )}
           </TouchableOpacity>
         </View>
+        
+        {/* Message Options Modal */}
+        <Modal
+          visible={showMessageOptions}
+          transparent
+          animationType="fade"
+          onRequestClose={() => {
+            setShowMessageOptions(false);
+            setSelectedMessage(null);
+          }}
+        >
+          <TouchableOpacity 
+            style={styles.modalOverlay}
+            activeOpacity={1}
+            onPress={() => {
+              setShowMessageOptions(false);
+              setSelectedMessage(null);
+            }}
+          >
+            <View style={styles.messageOptionsModal}>
+              {/* Reaction Picker */}
+              <View style={styles.reactionPickerRow}>
+                {REACTION_EMOJIS.map((emoji) => (
+                  <TouchableOpacity
+                    key={emoji}
+                    style={styles.reactionOption}
+                    onPress={() => handleReaction(emoji)}
+                  >
+                    <Text style={styles.reactionOptionEmoji}>{emoji}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              
+              {/* Reply Option */}
+              <TouchableOpacity
+                style={styles.messageOptionItem}
+                onPress={() => {
+                  if (selectedMessage) {
+                    setReplyingTo(selectedMessage);
+                  }
+                  setShowMessageOptions(false);
+                  setSelectedMessage(null);
+                }}
+              >
+                <Ionicons name="arrow-undo-outline" size={22} color={COLORS.text} />
+                <Text style={styles.messageOptionText}>Responder</Text>
+              </TouchableOpacity>
+              
+              {/* Delete Option (only for own messages) */}
+              {selectedMessage?.senderId === user?.id && (
+                <>
+                  <View style={styles.messageOptionsDivider} />
+                  <TouchableOpacity
+                    style={styles.messageOptionItem}
+                    onPress={handleDeleteMessage}
+                  >
+                    <Ionicons name="trash-outline" size={22} color="#ef4444" />
+                    <Text style={[styles.messageOptionText, { color: '#ef4444' }]}>Apagar</Text>
+                  </TouchableOpacity>
+                </>
+              )}
+              
+              <TouchableOpacity
+                style={[styles.messageOptionItem, styles.cancelOption]}
+                onPress={() => {
+                  setShowMessageOptions(false);
+                  setSelectedMessage(null);
+                }}
+              >
+                <Text style={styles.cancelText}>Cancelar</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        </Modal>
       </KeyboardAvoidingView>
     );
   };
@@ -2019,5 +2420,120 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: COLORS.textSecondary,
+  },
+  
+  // Safety Banner
+  safetyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(132, 204, 22, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    gap: 6,
+  },
+  safetyText: {
+    fontSize: 11,
+    color: COLORS.primary,
+  },
+  
+  // Video in messages
+  videoContainer: {
+    position: 'relative',
+    marginTop: 8,
+  },
+  messageVideo: {
+    width: 200,
+    height: 150,
+    borderRadius: 8,
+    backgroundColor: COLORS.border,
+  },
+  
+  // File in messages
+  fileContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.1)',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 8,
+    gap: 8,
+  },
+  fileName: {
+    fontSize: 13,
+    color: COLORS.text,
+    flex: 1,
+  },
+  ownFileName: {
+    color: COLORS.background,
+  },
+  
+  // Reactions
+  reactionsContainer: {
+    flexDirection: 'row',
+    marginTop: 4,
+    gap: 4,
+  },
+  ownReactions: {
+    justifyContent: 'flex-end',
+  },
+  otherReactions: {
+    justifyContent: 'flex-start',
+  },
+  reactionBubble: {
+    backgroundColor: COLORS.card,
+    borderRadius: 12,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  reactionEmoji: {
+    fontSize: 14,
+  },
+  
+  // Message Options Modal
+  messageOptionsModal: {
+    backgroundColor: COLORS.card,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    paddingBottom: 34,
+  },
+  reactionPickerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  reactionOption: {
+    padding: 8,
+  },
+  reactionOptionEmoji: {
+    fontSize: 28,
+  },
+  messageOptionsDivider: {
+    height: 1,
+    backgroundColor: COLORS.border,
+  },
+  messageOptionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  messageOptionText: {
+    fontSize: 16,
+    color: COLORS.text,
+  },
+  cancelOption: {
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    justifyContent: 'center',
+    marginTop: 8,
+  },
+  cancelText: {
+    fontSize: 16,
+    color: COLORS.textMuted,
+    textAlign: 'center',
   },
 });
