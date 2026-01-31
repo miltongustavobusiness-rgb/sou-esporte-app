@@ -246,7 +246,7 @@ export default function CreateGroupScreen() {
         privacy: visibilidade === 'privado' ? 'private' : 'public',
         groupType: groupTypeMap[modalidade] || 'other',
         city: cidade.trim(),
-        state: bairro.trim(), // Usando bairro como state por enquanto
+        meetingPoint: bairro.trim() || undefined, // Bairro como ponto de encontro
         requiresApproval: aprovarMembrosManualmente,
       });
 
