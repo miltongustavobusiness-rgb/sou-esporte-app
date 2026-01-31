@@ -490,8 +490,26 @@ export default function GroupDetailScreen() {
                 <Text style={styles.postContent}>{post.content}</Text>
               )}
 
-              {/* Post Image */}
-              {post.imageUrl && (
+              {/* Post Video */}
+              {post.videoUrl && (
+                <TouchableOpacity 
+                  style={styles.postVideoContainer}
+                  onPress={() => navigation.navigate('PostDetail' as any, { postId: post.id })}
+                  activeOpacity={0.9}
+                >
+                  <Image
+                    source={{ uri: post.thumbnailUrl || post.imageUrl || post.videoUrl }}
+                    style={styles.postImage}
+                    resizeMode="cover"
+                  />
+                  <View style={styles.videoPlayOverlay}>
+                    <Ionicons name="play-circle" size={60} color="rgba(255,255,255,0.9)" />
+                  </View>
+                </TouchableOpacity>
+              )}
+
+              {/* Post Image (only if no video) */}
+              {!post.videoUrl && post.imageUrl && (
                 <Image
                   source={{ uri: post.imageUrl }}
                   style={styles.postImage}
@@ -841,14 +859,15 @@ export default function GroupDetailScreen() {
 
   const memberCount = Math.max(group?.memberCount || 0, 1);
   const coverImage = group?.coverUrl || group?.coverImageUrl;
+  const headerHeight = width / 2; // Height = half of screen width
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      {/* Header with Cover Image */}
+      {/* Header with Full-Width Cover Image */}
       <View style={styles.headerContainer}>
         <ImageBackground
           source={coverImage ? { uri: coverImage } : undefined}
-          style={styles.headerBackground}
+          style={[styles.headerBackground, { height: headerHeight }]}
           resizeMode="cover"
         >
           <View style={styles.headerOverlay}>
@@ -860,6 +879,13 @@ export default function GroupDetailScreen() {
               >
                 <Ionicons name="arrow-back" size={24} color="#fff" />
               </TouchableOpacity>
+              
+              {/* Sou Esporte Logo - Large and Centered */}
+              <Image
+                source={require('../assets/logo-sou-esporte.png')}
+                style={styles.headerLogo}
+                resizeMode="contain"
+              />
               
               <View style={styles.headerRightButtons}>
                 {canManage && (
@@ -879,32 +905,19 @@ export default function GroupDetailScreen() {
               </View>
             </View>
             
-            {/* Group Info */}
+            {/* Group Info - Bottom of header */}
             <View style={styles.headerGroupInfo}>
-              {/* Group Logo/Cover as Profile Photo */}
-              <View style={styles.groupProfileContainer}>
-                {(group?.logoUrl || coverImage) ? (
-                  <Image
-                    source={{ uri: group?.logoUrl || coverImage }}
-                    style={styles.groupProfileImage}
-                  />
-                ) : (
-                  <View style={styles.groupProfilePlaceholder}>
-                    <Ionicons name="people" size={32} color="#fff" />
-                  </View>
-                )}
-              </View>
               <View style={styles.groupNameContainer}>
                 <Text style={styles.headerGroupLabel}>GRUPO:</Text>
                 <Text style={styles.headerGroupName} numberOfLines={2}>
                   {group?.name || groupName}
                 </Text>
-              </View>
-              <View style={styles.headerGroupMeta}>
-                <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
-                <Text style={styles.headerGroupLocation}>
-                  {group?.city}{group?.state ? `, ${group.state}` : ''}
-                </Text>
+                <View style={styles.headerGroupMeta}>
+                  <Ionicons name={modalityInfo.icon as any} size={14} color={modalityInfo.color} />
+                  <Text style={styles.headerGroupLocation}>
+                    {group?.city}{group?.state ? `, ${group.state}` : ''}
+                  </Text>
+                </View>
               </View>
             </View>
           </View>
@@ -1213,18 +1226,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   
-  // New Header Styles with Cover Image
+  // New Header Styles with Full-Width Cover Image
   headerContainer: {
     width: '100%',
   },
   headerBackground: {
     width: '100%',
-    height: 180,
     backgroundColor: COLORS.card,
   },
   headerOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
+    backgroundColor: 'rgba(0,0,0,0.35)',
     justifyContent: 'space-between',
   },
   headerTopBar: {
@@ -1246,53 +1258,35 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  headerLogo: {
+    width: 150,
+    height: 50,
+  },
   headerGroupInfo: {
-    flexDirection: 'row',
-    alignItems: 'center',
     padding: 16,
     paddingBottom: 20,
-  },
-  groupProfileContainer: {
-    marginRight: 12,
-  },
-  groupProfileImage: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    borderWidth: 3,
-    borderColor: '#fff',
-  },
-  groupProfilePlaceholder: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 3,
-    borderColor: '#fff',
   },
   groupNameContainer: {
     flex: 1,
   },
   headerGroupLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-    letterSpacing: 1,
-    marginBottom: 2,
-    textShadowColor: 'rgba(0,0,0,0.5)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
-  },
-  headerGroupName: {
-    fontSize: 20,
+    fontSize: 14,
     fontWeight: '700',
-    color: '#fff',
+    color: COLORS.primary,
+    letterSpacing: 1.5,
     marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,
+  },
+  headerGroupName: {
+    fontSize: 24,
+    fontWeight: '800',
+    color: '#fff',
+    marginBottom: 8,
+    textShadowColor: 'rgba(0,0,0,0.7)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   headerGroupMeta: {
     flexDirection: 'row',
@@ -1300,11 +1294,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   headerGroupLocation: {
-    fontSize: 14,
+    fontSize: 15,
     color: '#fff',
-    textShadowColor: 'rgba(0,0,0,0.5)',
+    fontWeight: '500',
+    textShadowColor: 'rgba(0,0,0,0.7)',
     textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 2,
+    textShadowRadius: 3,
   },
   
   quickActionsContainer: {
@@ -1439,6 +1434,20 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1,
     backgroundColor: COLORS.border,
+  },
+  postVideoContainer: {
+    position: 'relative',
+    width: '100%',
+  },
+  videoPlayOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0,0,0,0.2)',
   },
   
   // Engagement Bar - Same as global feed
