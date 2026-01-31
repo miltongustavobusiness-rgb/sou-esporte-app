@@ -109,10 +109,16 @@ const MODALITY_ICONS: Record<string, { icon: string; color: string }> = {
 };
 
 const TRAINING_TYPE_SCREENS: Record<string, string> = {
+  corrida: 'CreateTraining',
+  triathlon: 'CreateTraining',
+  bike: 'CreateTraining',
+  natacao: 'CreateTraining',
   funcional: 'CreateFunctionalTraining',
   caminhada_trail: 'CreateHike',
   yoga: 'CreateYogaSession',
   lutas: 'CreateFightTraining',
+  crossfit: 'CreateFunctionalTraining',
+  musculacao: 'CreateFunctionalTraining',
 };
 
 // Format relative time like global feed
@@ -1156,51 +1162,129 @@ export default function GroupDetailScreen() {
             <Text style={styles.modalTitle}>Criar Treino</Text>
             <Text style={styles.modalSubtitle}>Escolha o tipo de treino</Text>
 
-            <View style={styles.trainingOptions}>
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('funcional')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#FF572220' }]}>
-                  <Ionicons name="barbell-outline" size={28} color="#FF5722" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Funcional</Text>
-                <Text style={styles.trainingOptionDesc}>Circuitos, HIIT, força</Text>
-              </TouchableOpacity>
+            <ScrollView style={styles.trainingOptionsScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.trainingOptions}>
+                {/* Corrida */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('corrida')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#2196F320' }]}>
+                    <Ionicons name="walk-outline" size={28} color="#2196F3" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Corrida</Text>
+                  <Text style={styles.trainingOptionDesc}>Treinos de corrida</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('caminhada_trail')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#4CAF5020' }]}>
-                  <Ionicons name="trail-sign-outline" size={28} color="#4CAF50" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Caminhada/Trail</Text>
-                <Text style={styles.trainingOptionDesc}>Trilhas e caminhadas</Text>
-              </TouchableOpacity>
+                {/* Triathlon */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('triathlon')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#FF572220' }]}>
+                    <Ionicons name="medal-outline" size={28} color="#FF5722" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Triathlon</Text>
+                  <Text style={styles.trainingOptionDesc}>Natação, bike, corrida</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('yoga')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#9C27B020' }]}>
-                  <Ionicons name="body-outline" size={28} color="#9C27B0" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Yoga</Text>
-                <Text style={styles.trainingOptionDesc}>Sessões de yoga</Text>
-              </TouchableOpacity>
+                {/* Bike/Ciclismo */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('bike')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#4CAF5020' }]}>
+                    <Ionicons name="bicycle-outline" size={28} color="#4CAF50" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Bike/Ciclismo</Text>
+                  <Text style={styles.trainingOptionDesc}>Pedal e ciclismo</Text>
+                </TouchableOpacity>
 
-              <TouchableOpacity 
-                style={styles.trainingOption}
-                onPress={() => handleCreateTraining('lutas')}
-              >
-                <View style={[styles.trainingOptionIcon, { backgroundColor: '#F4433620' }]}>
-                  <Ionicons name="hand-left-outline" size={28} color="#F44336" />
-                </View>
-                <Text style={styles.trainingOptionLabel}>Lutas</Text>
-                <Text style={styles.trainingOptionDesc}>Artes marciais</Text>
-              </TouchableOpacity>
-            </View>
+                {/* Natação */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('natacao')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#00BCD420' }]}>
+                    <Ionicons name="water-outline" size={28} color="#00BCD4" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Natação</Text>
+                  <Text style={styles.trainingOptionDesc}>Treinos na piscina</Text>
+                </TouchableOpacity>
+
+                {/* Funcional */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('funcional')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#E91E6320' }]}>
+                    <Ionicons name="barbell-outline" size={28} color="#E91E63" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Funcional</Text>
+                  <Text style={styles.trainingOptionDesc}>Circuitos, HIIT, força</Text>
+                </TouchableOpacity>
+
+                {/* Caminhada/Trail */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('caminhada_trail')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#8BC34A20' }]}>
+                    <Ionicons name="trail-sign-outline" size={28} color="#8BC34A" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Caminhada/Trail</Text>
+                  <Text style={styles.trainingOptionDesc}>Trilhas e caminhadas</Text>
+                </TouchableOpacity>
+
+                {/* Yoga */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('yoga')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#9C27B020' }]}>
+                    <Ionicons name="body-outline" size={28} color="#9C27B0" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Yoga</Text>
+                  <Text style={styles.trainingOptionDesc}>Sessões de yoga</Text>
+                </TouchableOpacity>
+
+                {/* Lutas */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('lutas')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#F4433620' }]}>
+                    <Ionicons name="hand-left-outline" size={28} color="#F44336" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Lutas</Text>
+                  <Text style={styles.trainingOptionDesc}>Artes marciais</Text>
+                </TouchableOpacity>
+
+                {/* CrossFit */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('crossfit')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#FF980020' }]}>
+                    <Ionicons name="fitness-outline" size={28} color="#FF9800" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>CrossFit</Text>
+                  <Text style={styles.trainingOptionDesc}>WODs e treinos intensos</Text>
+                </TouchableOpacity>
+
+                {/* Musculação */}
+                <TouchableOpacity 
+                  style={styles.trainingOption}
+                  onPress={() => handleCreateTraining('musculacao')}
+                >
+                  <View style={[styles.trainingOptionIcon, { backgroundColor: '#79554820' }]}>
+                    <Ionicons name="barbell" size={28} color="#795548" />
+                  </View>
+                  <Text style={styles.trainingOptionLabel}>Musculação</Text>
+                  <Text style={styles.trainingOptionDesc}>Treinos de academia</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
 
             <TouchableOpacity 
               style={styles.cancelModalButton}
@@ -1887,6 +1971,10 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     padding: 20,
     paddingBottom: 40,
+    maxHeight: '80%',
+  },
+  trainingOptionsScroll: {
+    maxHeight: 400,
   },
   trainingOptions: {
     flexDirection: 'row',

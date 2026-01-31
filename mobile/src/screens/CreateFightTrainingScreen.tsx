@@ -160,7 +160,7 @@ export default function CreateFightTrainingScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="close" size={24} color="#333" />
+          <Ionicons name="close" size={24} color="#F8FAFC" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Treino de Lutas</Text>
@@ -186,7 +186,7 @@ export default function CreateFightTrainingScreen() {
             placeholder="Ex: Treino de Jiu-Jitsu - Guardas"
             value={title}
             onChangeText={setTitle}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -200,7 +200,7 @@ export default function CreateFightTrainingScreen() {
             onChangeText={setDescription}
             multiline
             numberOfLines={3}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -208,7 +208,7 @@ export default function CreateFightTrainingScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data e Hora</Text>
           <TouchableOpacity style={styles.dateButton} onPress={openDateModal}>
-            <Ionicons name="calendar-outline" size={20} color="#F44336" />
+            <Ionicons name="calendar-outline" size={20} color="#84CC16" />
             <Text style={styles.dateButtonText}>{formatDate(scheduledDate)}</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -222,7 +222,7 @@ export default function CreateFightTrainingScreen() {
             placeholder="Ex: Academia Fight Club"
             value={meetingPoint}
             onChangeText={setMeetingPoint}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -283,7 +283,7 @@ export default function CreateFightTrainingScreen() {
                 <Text style={styles.trainingTypeDescription}>{type.description}</Text>
               </View>
               {trainingType === type.id && (
-                <Ionicons name="checkmark-circle" size={24} color="#F44336" />
+                <Ionicons name="checkmark-circle" size={24} color="#84CC16" />
               )}
             </TouchableOpacity>
           ))}
@@ -326,7 +326,7 @@ export default function CreateFightTrainingScreen() {
               value={durationMinutes}
               onChangeText={setDurationMinutes}
               keyboardType="numeric"
-              placeholderTextColor="#999"
+              placeholderTextColor="#64748B"
             />
           </View>
           <View style={[styles.section, { flex: 1, marginLeft: 8 }]}>
@@ -337,7 +337,7 @@ export default function CreateFightTrainingScreen() {
               value={maxParticipants}
               onChangeText={setMaxParticipants}
               keyboardType="numeric"
-              placeholderTextColor="#999"
+              placeholderTextColor="#64748B"
             />
           </View>
         </View>
@@ -412,7 +412,7 @@ export default function CreateFightTrainingScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="DD"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -424,7 +424,7 @@ export default function CreateFightTrainingScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -436,7 +436,7 @@ export default function CreateFightTrainingScreen() {
                   keyboardType="numeric"
                   maxLength={4}
                   placeholder="AAAA"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
             </View>
@@ -451,7 +451,7 @@ export default function CreateFightTrainingScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="HH"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <Text style={styles.timeSeparator}>:</Text>
@@ -464,7 +464,7 @@ export default function CreateFightTrainingScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
             </View>
@@ -490,19 +490,32 @@ export default function CreateFightTrainingScreen() {
   );
 }
 
+// Dark theme colors matching app palette
+const COLORS = {
+  background: '#0F172A',
+  card: '#1E293B',
+  cardLight: '#334155',
+  primary: '#84CC16',
+  accent: '#F44336', // Fight red accent
+  text: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  border: '#334155',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 4,
@@ -514,24 +527,24 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   submitButton: {
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.cardLight,
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -545,17 +558,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   textArea: {
     minHeight: 80,
@@ -564,17 +577,17 @@ const styles = StyleSheet.create({
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
     gap: 10,
   },
   dateButtonText: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
   },
   row: {
     flexDirection: 'row',
@@ -586,18 +599,18 @@ const styles = StyleSheet.create({
   },
   fightStyleCard: {
     width: '23%',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 12,
     marginHorizontal: '1%',
     marginBottom: 8,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   fightStyleCardSelected: {
-    backgroundColor: '#FFEBEE',
-    borderColor: '#F44336',
+    backgroundColor: '#F4433620',
+    borderColor: COLORS.accent,
   },
   fightStyleIcon: {
     fontSize: 24,
@@ -606,36 +619,36 @@ const styles = StyleSheet.create({
   fightStyleLabel: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
   },
   fightStyleLabelSelected: {
-    color: '#F44336',
+    color: COLORS.accent,
   },
   trainingTypeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   trainingTypeCardSelected: {
-    borderColor: '#F44336',
-    backgroundColor: '#FFEBEE',
+    borderColor: COLORS.accent,
+    backgroundColor: '#F4433620',
   },
   trainingTypeIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#FFEBEE',
+    backgroundColor: '#F4433620',
     alignItems: 'center',
     justifyContent: 'center',
   },
   trainingTypeIconSelected: {
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.accent,
   },
   trainingTypeInfo: {
     flex: 1,
@@ -644,14 +657,14 @@ const styles = StyleSheet.create({
   trainingTypeLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   trainingTypeLabelSelected: {
-    color: '#F44336',
+    color: COLORS.accent,
   },
   trainingTypeDescription: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   beltLevelsRow: {
@@ -660,12 +673,12 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   beltCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
     minWidth: 80,
   },
   beltColor: {
@@ -674,34 +687,34 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 8,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   beltLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   beltLabelSelected: {
-    color: '#F44336',
+    color: COLORS.accent,
   },
   switchRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   switchLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   switchDescription: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   tagsContainer: {
@@ -713,17 +726,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   tagSelected: {
-    backgroundColor: '#F44336',
-    borderColor: '#F44336',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   tagText: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   tagTextSelected: {
     color: '#fff',
@@ -731,11 +744,11 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   dateModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -744,7 +757,7 @@ const styles = StyleSheet.create({
   dateModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -766,24 +779,24 @@ const styles = StyleSheet.create({
   },
   dateInputLabel: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginBottom: 6,
   },
   dateInput: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.cardLight,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     minWidth: 70,
   },
   timeSeparator: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 14,
   },
   dateModalButtons: {
@@ -794,24 +807,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.cardLight,
     alignItems: 'center',
   },
   dateModalCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   dateModalConfirm: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#F44336',
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
   },
   dateModalConfirmText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: '#1a1a1a',
   },
 });

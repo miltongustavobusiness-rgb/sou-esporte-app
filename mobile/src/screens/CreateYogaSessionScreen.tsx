@@ -146,7 +146,7 @@ export default function CreateYogaSessionScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="close" size={24} color="#333" />
+          <Ionicons name="close" size={24} color="#F8FAFC" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Sessão de Yoga</Text>
@@ -172,7 +172,7 @@ export default function CreateYogaSessionScreen() {
             placeholder="Ex: Yoga ao Nascer do Sol"
             value={title}
             onChangeText={setTitle}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -186,7 +186,7 @@ export default function CreateYogaSessionScreen() {
             onChangeText={setDescription}
             multiline
             numberOfLines={3}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -194,7 +194,7 @@ export default function CreateYogaSessionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data e Hora</Text>
           <TouchableOpacity style={styles.dateButton} onPress={openDateModal}>
-            <Ionicons name="calendar-outline" size={20} color="#9C27B0" />
+            <Ionicons name="calendar-outline" size={20} color="#84CC16" />
             <Text style={styles.dateButtonText}>{formatDate(scheduledDate)}</Text>
             <Ionicons name="chevron-forward" size={20} color="#999" />
           </TouchableOpacity>
@@ -208,7 +208,7 @@ export default function CreateYogaSessionScreen() {
             placeholder="Ex: Parque da Cidade - Gramado"
             value={meetingPoint}
             onChangeText={setMeetingPoint}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -348,7 +348,7 @@ export default function CreateYogaSessionScreen() {
             value={maxParticipants}
             onChangeText={setMaxParticipants}
             keyboardType="numeric"
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -380,7 +380,7 @@ export default function CreateYogaSessionScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="DD"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -392,7 +392,7 @@ export default function CreateYogaSessionScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -404,7 +404,7 @@ export default function CreateYogaSessionScreen() {
                   keyboardType="numeric"
                   maxLength={4}
                   placeholder="AAAA"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
             </View>
@@ -419,7 +419,7 @@ export default function CreateYogaSessionScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="HH"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <Text style={styles.timeSeparator}>:</Text>
@@ -432,7 +432,7 @@ export default function CreateYogaSessionScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
             </View>
@@ -458,19 +458,32 @@ export default function CreateYogaSessionScreen() {
   );
 }
 
+// Dark theme colors matching app palette
+const COLORS = {
+  background: '#0F172A',
+  card: '#1E293B',
+  cardLight: '#334155',
+  primary: '#84CC16',
+  accent: '#9C27B0', // Yoga purple accent
+  text: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  border: '#334155',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 4,
@@ -482,24 +495,24 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   submitButton: {
-    backgroundColor: '#9C27B0',
+    backgroundColor: COLORS.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.cardLight,
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontWeight: '600',
     fontSize: 14,
   },
@@ -513,17 +526,17 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   textArea: {
     minHeight: 80,
@@ -532,17 +545,17 @@ const styles = StyleSheet.create({
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
     gap: 10,
   },
   dateButtonText: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
   },
   horizontalOptions: {
     flexDirection: 'row',
@@ -550,21 +563,21 @@ const styles = StyleSheet.create({
     paddingRight: 16,
   },
   styleCard: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     width: 140,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   styleCardSelected: {
-    backgroundColor: '#9C27B0',
-    borderColor: '#9C27B0',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   styleLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 4,
   },
   styleLabelSelected: {
@@ -572,7 +585,7 @@ const styles = StyleSheet.create({
   },
   styleDescription: {
     fontSize: 11,
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   styleDescriptionSelected: {
     color: 'rgba(255,255,255,0.8)',
@@ -584,23 +597,23 @@ const styles = StyleSheet.create({
   },
   levelCard: {
     width: '48%',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     marginHorizontal: '1%',
     marginBottom: 8,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   levelCardSelected: {
-    backgroundColor: '#9C27B0',
-    borderColor: '#9C27B0',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   levelLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     marginTop: 8,
   },
   levelLabelSelected: {
@@ -612,21 +625,21 @@ const styles = StyleSheet.create({
   },
   durationButton: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   durationButtonSelected: {
-    backgroundColor: '#9C27B0',
-    borderColor: '#9C27B0',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   durationText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   durationTextSelected: {
     color: '#fff',
@@ -640,17 +653,17 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   tagSelected: {
-    backgroundColor: '#9C27B0',
-    borderColor: '#9C27B0',
+    backgroundColor: COLORS.accent,
+    borderColor: COLORS.accent,
   },
   tagText: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   tagTextSelected: {
     color: '#fff',
@@ -660,29 +673,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   switchLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   switchDescription: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   dateModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -691,7 +704,7 @@ const styles = StyleSheet.create({
   dateModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -713,24 +726,24 @@ const styles = StyleSheet.create({
   },
   dateInputLabel: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginBottom: 6,
   },
   dateInput: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.cardLight,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     minWidth: 70,
   },
   timeSeparator: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 14,
   },
   dateModalButtons: {
@@ -741,19 +754,19 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.cardLight,
     alignItems: 'center',
   },
   dateModalCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   dateModalConfirm: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#9C27B0',
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
   },
   dateModalConfirmText: {

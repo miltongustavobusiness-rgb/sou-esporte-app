@@ -118,7 +118,7 @@ export default function CreateHikeScreen() {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#333" />
+          <Ionicons name="arrow-back" size={24} color="#F8FAFC" />
         </TouchableOpacity>
         <View style={styles.headerTitleContainer}>
           <Text style={styles.headerTitle}>Agendar Caminhada/Trilha</Text>
@@ -135,7 +135,7 @@ export default function CreateHikeScreen() {
             placeholder="Ex: Trilha do Pico da Bandeira"
             value={title}
             onChangeText={setTitle}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -149,7 +149,7 @@ export default function CreateHikeScreen() {
             onChangeText={setDescription}
             multiline
             numberOfLines={4}
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -172,7 +172,7 @@ export default function CreateHikeScreen() {
                 <Ionicons 
                   name={type.icon as any} 
                   size={24} 
-                  color={trailType === type.id ? '#fff' : '#00C853'} 
+                  color={trailType === type.id ? '#1a1a1a' : '#84CC16'} 
                 />
               </View>
               <View style={styles.trailTypeInfo}>
@@ -185,7 +185,7 @@ export default function CreateHikeScreen() {
                 <Text style={styles.trailTypeDescription}>{type.description}</Text>
               </View>
               {trailType === type.id && (
-                <Ionicons name="checkmark-circle" size={24} color="#00C853" />
+                <Ionicons name="checkmark-circle" size={24} color="#84CC16" />
               )}
             </TouchableOpacity>
           ))}
@@ -195,9 +195,9 @@ export default function CreateHikeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Data e Hora</Text>
           <TouchableOpacity style={styles.dateButton} onPress={openDateModal}>
-            <Ionicons name="calendar-outline" size={20} color="#00C853" />
+            <Ionicons name="calendar-outline" size={20} color="#84CC16" />
             <Text style={styles.dateButtonText}>{formatDate(scheduledDate)}</Text>
-            <Ionicons name="chevron-forward" size={20} color="#999" />
+            <Ionicons name="chevron-forward" size={20} color="#94A3B8" />
           </TouchableOpacity>
         </View>
 
@@ -206,38 +206,38 @@ export default function CreateHikeScreen() {
           <Text style={styles.sectionTitle}>Detalhes do Percurso</Text>
           <View style={styles.statsRow}>
             <View style={styles.statInput}>
-              <Ionicons name="navigate-outline" size={20} color="#00C853" />
+              <Ionicons name="navigate-outline" size={20} color="#84CC16" />
               <TextInput
                 style={styles.statTextInput}
                 placeholder="Distância"
                 value={distanceKm}
                 onChangeText={setDistanceKm}
                 keyboardType="decimal-pad"
-                placeholderTextColor="#999"
+                placeholderTextColor="#64748B"
               />
               <Text style={styles.statUnit}>km</Text>
             </View>
             <View style={styles.statInput}>
-              <Ionicons name="time-outline" size={20} color="#00C853" />
+              <Ionicons name="time-outline" size={20} color="#84CC16" />
               <TextInput
                 style={styles.statTextInput}
                 placeholder="Duração"
                 value={durationMinutes}
                 onChangeText={setDurationMinutes}
                 keyboardType="numeric"
-                placeholderTextColor="#999"
+                placeholderTextColor="#64748B"
               />
               <Text style={styles.statUnit}>min</Text>
             </View>
             <View style={styles.statInput}>
-              <Ionicons name="trending-up-outline" size={20} color="#00C853" />
+              <Ionicons name="trending-up-outline" size={20} color="#84CC16" />
               <TextInput
                 style={styles.statTextInput}
                 placeholder="Elevação"
                 value={elevationGain}
                 onChangeText={setElevationGain}
                 keyboardType="numeric"
-                placeholderTextColor="#999"
+                placeholderTextColor="#64748B"
               />
               <Text style={styles.statUnit}>m</Text>
             </View>
@@ -248,13 +248,13 @@ export default function CreateHikeScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ponto de Encontro</Text>
           <View style={styles.locationInput}>
-            <Ionicons name="location-outline" size={20} color="#00C853" />
+            <Ionicons name="location-outline" size={20} color="#84CC16" />
             <TextInput
               style={styles.locationTextInput}
               placeholder="Ex: Estacionamento do Parque Nacional..."
               value={meetingPoint}
               onChangeText={setMeetingPoint}
-              placeholderTextColor="#999"
+              placeholderTextColor="#64748B"
             />
           </View>
         </View>
@@ -268,7 +268,7 @@ export default function CreateHikeScreen() {
             value={maxParticipants}
             onChangeText={setMaxParticipants}
             keyboardType="numeric"
-            placeholderTextColor="#999"
+            placeholderTextColor="#64748B"
           />
         </View>
 
@@ -314,7 +314,7 @@ export default function CreateHikeScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="DD"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -326,7 +326,7 @@ export default function CreateHikeScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <View style={styles.dateInputGroup}>
@@ -338,7 +338,7 @@ export default function CreateHikeScreen() {
                   keyboardType="numeric"
                   maxLength={4}
                   placeholder="AAAA"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
             </View>
@@ -353,7 +353,7 @@ export default function CreateHikeScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="HH"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
               <Text style={styles.timeSeparator}>:</Text>
@@ -366,7 +366,7 @@ export default function CreateHikeScreen() {
                   keyboardType="numeric"
                   maxLength={2}
                   placeholder="MM"
-                  placeholderTextColor="#999"
+                  placeholderTextColor="#64748B"
                 />
               </View>
             </View>
@@ -392,19 +392,31 @@ export default function CreateHikeScreen() {
   );
 }
 
+// Dark theme colors matching app palette
+const COLORS = {
+  background: '#0F172A',
+  card: '#1E293B',
+  cardLight: '#334155',
+  primary: '#84CC16',
+  text: '#F8FAFC',
+  textSecondary: '#94A3B8',
+  textMuted: '#64748B',
+  border: '#334155',
+};
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.background,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
-    borderBottomColor: '#eee',
+    borderBottomColor: COLORS.border,
   },
   backButton: {
     padding: 4,
@@ -415,11 +427,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
   },
   headerSubtitle: {
     fontSize: 13,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   content: {
@@ -432,18 +444,18 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   textArea: {
     height: 100,
@@ -452,27 +464,27 @@ const styles = StyleSheet.create({
   trailTypeCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 16,
     marginBottom: 8,
     borderWidth: 2,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   trailTypeCardSelected: {
-    borderColor: '#00C853',
-    backgroundColor: '#f0fff4',
+    borderColor: COLORS.primary,
+    backgroundColor: '#84CC1620',
   },
   trailTypeIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#f0fff4',
+    backgroundColor: '#84CC1620',
     alignItems: 'center',
     justifyContent: 'center',
   },
   trailTypeIconSelected: {
-    backgroundColor: '#00C853',
+    backgroundColor: COLORS.primary,
   },
   trailTypeInfo: {
     flex: 1,
@@ -481,30 +493,30 @@ const styles = StyleSheet.create({
   trailTypeLabel: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
   },
   trailTypeLabelSelected: {
-    color: '#00C853',
+    color: COLORS.primary,
   },
   trailTypeDescription: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginTop: 2,
   },
   dateButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     padding: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
     gap: 10,
   },
   dateButtonText: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
   },
   statsRow: {
     flexDirection: 'row',
@@ -514,49 +526,49 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   statTextInput: {
     flex: 1,
     fontSize: 14,
-    color: '#333',
+    color: COLORS.text,
     marginLeft: 8,
     textAlign: 'center',
   },
   statUnit: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginLeft: 4,
   },
   locationInput: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     borderWidth: 1,
-    borderColor: '#e0e0e0',
+    borderColor: COLORS.border,
   },
   locationTextInput: {
     flex: 1,
     fontSize: 15,
-    color: '#333',
+    color: COLORS.text,
     marginLeft: 12,
   },
   footer: {
     padding: 16,
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.background,
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: COLORS.border,
   },
   submitButton: {
-    backgroundColor: '#00C853',
+    backgroundColor: COLORS.primary,
     borderRadius: 12,
     paddingVertical: 16,
     flexDirection: 'row',
@@ -564,20 +576,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   submitButtonDisabled: {
-    backgroundColor: '#ccc',
+    backgroundColor: COLORS.cardLight,
   },
   submitButtonText: {
-    color: '#fff',
+    color: '#1a1a1a',
     fontSize: 16,
     fontWeight: '600',
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
+    backgroundColor: 'rgba(0,0,0,0.7)',
     justifyContent: 'flex-end',
   },
   dateModalContent: {
-    backgroundColor: '#fff',
+    backgroundColor: COLORS.card,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 20,
@@ -586,7 +598,7 @@ const styles = StyleSheet.create({
   dateModalTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -608,24 +620,24 @@ const styles = StyleSheet.create({
   },
   dateInputLabel: {
     fontSize: 12,
-    color: '#666',
+    color: COLORS.textSecondary,
     marginBottom: 6,
   },
   dateInput: {
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.cardLight,
     borderRadius: 12,
     paddingHorizontal: 16,
     paddingVertical: 14,
     fontSize: 18,
     fontWeight: '600',
-    color: '#333',
+    color: COLORS.text,
     textAlign: 'center',
     minWidth: 70,
   },
   timeSeparator: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#333',
+    color: COLORS.text,
     marginBottom: 14,
   },
   dateModalButtons: {
@@ -636,24 +648,24 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: COLORS.cardLight,
     alignItems: 'center',
   },
   dateModalCancelText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#666',
+    color: COLORS.textSecondary,
   },
   dateModalConfirm: {
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#00C853',
+    backgroundColor: COLORS.primary,
     alignItems: 'center',
   },
   dateModalConfirmText: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#fff',
+    color: '#1a1a1a',
   },
 });
