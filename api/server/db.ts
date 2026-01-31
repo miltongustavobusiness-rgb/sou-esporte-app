@@ -5156,7 +5156,23 @@ export async function getGroupMembers(groupId: number): Promise<any[]> {
     
     console.log(`[db.getGroupMembers] Getting members for groupId=${groupId}`);
     
-    // Use raw SQL to avoid Drizzle issues with enum columns
+    // First, get the group to find the owner
+    const groupResult = await db.execute(
+      sql`SELECT g.id, g.ownerId, g.createdAt, u.id as owner_id, u.name as owner_name, u.username as owner_username, u.photoUrl as owner_photoUrl
+          FROM \`groups\` g
+          INNER JOIN users u ON g.ownerId = u.id
+          WHERE g.id = ${groupId}`
+    );
+    
+    const groupRows = (groupResult as any)[0] || [];
+    const group = groupRows[0];
+    
+    if (!group) {
+      console.log(`[db.getGroupMembers] Group not found`);
+      return [];
+    }
+    
+    // Get members from group_members table
     const result = await db.execute(
       sql`SELECT 
             gm.id, gm.groupId, gm.userId, gm.role, gm.status, 
@@ -5165,14 +5181,14 @@ export async function getGroupMembers(groupId: number): Promise<any[]> {
             u.id as user_id, u.name as user_name, u.username as user_username, u.photoUrl as user_photoUrl
           FROM group_members gm
           INNER JOIN users u ON gm.userId = u.id
-          WHERE gm.groupId = ${groupId}
+          WHERE gm.groupId = ${groupId} AND gm.status = 'active'
           ORDER BY FIELD(gm.role, 'owner', 'admin', 'moderator', 'member'), gm.joinedAt`
     );
     
     const rows = (result as any)[0] || [];
-    console.log(`[db.getGroupMembers] Found ${rows.length} members`);
+    console.log(`[db.getGroupMembers] Found ${rows.length} members in group_members table`);
     
-    return rows.map((r: any) => ({
+    const members = rows.map((r: any) => ({
       id: r.id,
       groupId: r.groupId,
       userId: r.userId,
@@ -5191,6 +5207,37 @@ export async function getGroupMembers(groupId: number): Promise<any[]> {
         photoUrl: r.user_photoUrl,
       },
     }));
+    
+    // Check if owner is in the members list
+    const ownerInList = members.some((m: any) => m.userId === group.ownerId);
+    
+    if (!ownerInList && group.ownerId) {
+      console.log(`[db.getGroupMembers] Owner not in group_members, adding from groups table`);
+      
+      // Add owner to the beginning of the list
+      members.unshift({
+        id: 0, // Virtual ID since not in group_members
+        groupId: groupId,
+        userId: group.ownerId,
+        role: 'owner',
+        status: 'active',
+        canCreateTraining: true,
+        notifyPosts: true,
+        notifyTrainings: true,
+        notifyChat: true,
+        joinedAt: group.createdAt,
+        updatedAt: group.createdAt,
+        user: {
+          id: group.owner_id,
+          name: group.owner_name,
+          username: group.owner_username,
+          photoUrl: group.owner_photoUrl,
+        },
+      });
+    }
+    
+    console.log(`[db.getGroupMembers] Returning ${members.length} total members`);
+    return members;
   } catch (error: any) {
     console.error('[db.getGroupMembers] Error:', error.message);
     console.error('[db.getGroupMembers] Stack:', error.stack);
