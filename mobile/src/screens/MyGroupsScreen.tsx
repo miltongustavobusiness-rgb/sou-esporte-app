@@ -157,7 +157,7 @@ export default function MyGroupsScreen() {
         {/* Logo Header */}
         <View style={styles.logoHeader}>
           <Image
-            source={require('../assets/logo-sou-esporte.png')}
+            source={require('../../assets/logo-souesporte.png')}
             style={styles.logoLarge}
             resizeMode="contain"
           />
@@ -178,7 +178,7 @@ export default function MyGroupsScreen() {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Image
-          source={require('../assets/logo-sou-esporte.png')}
+          source={require('../../assets/logo-souesporte.png')}
           style={styles.logoLarge}
           resizeMode="contain"
         />
