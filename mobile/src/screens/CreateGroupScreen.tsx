@@ -239,6 +239,19 @@ export default function CreateGroupScreen() {
     setLoading(true);
     
     try {
+      // Upload cover photo if selected
+      let coverUrl: string | undefined;
+      if (fotoCapa) {
+        console.log('[CreateGroup] Uploading cover photo...');
+        const uploadResult = await api.uploadMedia(fotoCapa, 'group');
+        if (uploadResult.success && uploadResult.url) {
+          coverUrl = uploadResult.url;
+          console.log('[CreateGroup] Cover photo uploaded:', coverUrl);
+        } else {
+          console.warn('[CreateGroup] Cover photo upload failed, continuing without it');
+        }
+      }
+
       // Mapear modalidade para groupType da API
       // Schema enum: running, cycling, triathlon, trail, swimming, fitness, funcional, caminhada_trail, yoga, lutas, other
       const groupTypeMap: Record<string, string> = {
@@ -263,6 +276,8 @@ export default function CreateGroupScreen() {
         state: estado || undefined, // Sigla do estado (UF - 2 letras)
         meetingPoint: bairro.trim() || undefined, // Bairro como ponto de encontro
         requiresApproval: aprovarMembrosManualmente,
+        coverUrl: coverUrl, // Pass uploaded cover URL
+        logoUrl: coverUrl, // Use same image as logo for now
       });
 
       if (result.success && result.groupId) {

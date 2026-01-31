@@ -1689,6 +1689,8 @@ ApiService.prototype.createGroup = async function(data: {
   state?: string;
   meetingPoint?: string;
   requiresApproval?: boolean;
+  logoUrl?: string;
+  coverUrl?: string;
 }): Promise<{ success: boolean; groupId?: number }> {
   try {
     // Get userId from stored user data
@@ -1728,6 +1730,13 @@ ApiService.prototype.createGroup = async function(data: {
     }
     if (typeof data.requiresApproval === 'boolean') {
       cleanData.requiresApproval = data.requiresApproval;
+    }
+    // Add logo and cover URLs
+    if (data.logoUrl && data.logoUrl.trim()) {
+      cleanData.logoUrl = data.logoUrl.trim();
+    }
+    if (data.coverUrl && data.coverUrl.trim()) {
+      cleanData.coverUrl = data.coverUrl.trim();
     }
     
     console.log('[api.createGroup] Creating group with data:', JSON.stringify(cleanData));
