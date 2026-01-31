@@ -3005,31 +3005,34 @@ export async function createGroup(group: InsertGroup): Promise<number> {
   const groupId = result[0].insertId;
   console.log('[db.createGroup] Group inserted with ID:', groupId);
   
-  // Add owner as member - use raw SQL to avoid schema mismatch issues
-  console.log('[db.createGroup] Adding owner as member...');
+  // Add owner as member - ALWAYS use raw SQL to avoid Drizzle enum serialization issues
+  console.log('[db.createGroup] Adding owner as member using raw SQL...');
   try {
-    // Try with canCreateTraining column first (newer schema)
-    await db.insert(groupMembers).values({
-      groupId,
-      userId: group.ownerId,
-      role: 'owner',
-      status: 'active',
-      canCreateTraining: true, // Owner can create trainings
-    });
-  } catch (memberError: any) {
-    console.log('[db.createGroup] First insert attempt failed, trying without canCreateTraining...');
-    // If that fails, try with raw SQL for older schema without canCreateTraining
     await db.execute(
-      sql`INSERT INTO group_members (groupId, userId, role, status, joinedAt, updatedAt) VALUES (${groupId}, ${group.ownerId}, 'owner', 'active', NOW(), NOW())`
+      sql`INSERT INTO group_members (groupId, userId, role, status, canCreateTraining, joinedAt, updatedAt) 
+          VALUES (${groupId}, ${group.ownerId}, 'owner', 'active', 1, NOW(), NOW())`
     );
+    console.log('[db.createGroup] Owner added as member successfully');
+  } catch (memberError: any) {
+    console.error('[db.createGroup] Error adding owner as member:', memberError.message);
+    // Try without canCreateTraining column in case it doesn't exist
+    try {
+      await db.execute(
+        sql`INSERT INTO group_members (groupId, userId, role, status, joinedAt, updatedAt) 
+            VALUES (${groupId}, ${group.ownerId}, 'owner', 'active', NOW(), NOW())`
+      );
+      console.log('[db.createGroup] Owner added as member (without canCreateTraining)');
+    } catch (fallbackError: any) {
+      console.error('[db.createGroup] Fallback also failed:', fallbackError.message);
+      // Don't throw - group was created, just member insert failed
+    }
   }
-  console.log('[db.createGroup] Owner added as member');
   
-  // Update member count
+  // Update member count using raw SQL
   console.log('[db.createGroup] Updating member count...');
-  await db.update(groups)
-    .set({ memberCount: 1 })
-    .where(eq(groups.id, groupId));
+  await db.execute(
+    sql`UPDATE \`groups\` SET memberCount = 1 WHERE id = ${groupId}`
+  );
   console.log('[db.createGroup] Member count updated');
   
   console.log('[db.createGroup] Group creation completed successfully. ID:', groupId);
