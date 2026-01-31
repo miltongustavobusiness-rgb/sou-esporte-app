@@ -12,6 +12,7 @@ import {
   Animated,
   PanResponder,
   Dimensions,
+  StatusBar,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -108,20 +109,17 @@ const SwipeableGroupCard = ({
       onPanResponderRelease: (_, gestureState) => {
         if (!canDelete) return;
         
-        // If swiped more than half the button width, open it
-        if (gestureState.dx < -DELETE_BUTTON_WIDTH / 2) {
+        // If swiped more than half the button width, open/close
+        if (gestureState.dx < -DELETE_BUTTON_WIDTH / 2 && !isOpen) {
           Animated.spring(translateX, {
             toValue: -DELETE_BUTTON_WIDTH,
             useNativeDriver: true,
-            friction: 8,
           }).start();
           setIsOpen(true);
         } else {
-          // Close the swipe
           Animated.spring(translateX, {
             toValue: 0,
             useNativeDriver: true,
-            friction: 8,
           }).start();
           setIsOpen(false);
         }
@@ -133,57 +131,53 @@ const SwipeableGroupCard = ({
     Animated.spring(translateX, {
       toValue: 0,
       useNativeDriver: true,
-      friction: 8,
     }).start();
     setIsOpen(false);
   };
 
-  const handlePress = () => {
-    if (isOpen) {
-      closeSwipe();
-    } else {
-      onPress();
-    }
-  };
-
-  const handleDelete = () => {
-    closeSwipe();
-    onDelete();
-  };
-
   return (
     <View style={styles.swipeContainer}>
-      {/* Delete button behind the card */}
+      {/* Delete button behind */}
       {canDelete && (
         <View style={styles.deleteButtonContainer}>
           <TouchableOpacity 
-            style={styles.deleteButton} 
-            onPress={handleDelete}
-            activeOpacity={0.8}
+            style={styles.deleteButton}
+            onPress={() => {
+              closeSwipe();
+              onDelete();
+            }}
           >
             <Ionicons name="trash-outline" size={24} color="#fff" />
             <Text style={styles.deleteButtonText}>Excluir</Text>
           </TouchableOpacity>
         </View>
       )}
-      
-      {/* Swipeable card */}
+
+      {/* Card */}
       <Animated.View
         style={[
           styles.groupCardAnimated,
           { transform: [{ translateX }] },
         ]}
-        {...panResponder.panHandlers}
+        {...(canDelete ? panResponder.panHandlers : {})}
       >
         <TouchableOpacity 
-          style={styles.groupCard} 
-          onPress={handlePress} 
+          style={styles.groupCard}
+          onPress={() => {
+            if (isOpen) {
+              closeSwipe();
+            } else {
+              onPress();
+            }
+          }}
           activeOpacity={0.7}
         >
-          {/* Imagem do grupo */}
           <View style={styles.groupImageContainer}>
-            {group.logoUrl ? (
-              <Image source={{ uri: group.logoUrl }} style={styles.groupImage} />
+            {group.logoUrl || group.coverUrl ? (
+              <Image
+                source={{ uri: group.logoUrl || group.coverUrl }}
+                style={styles.groupImage}
+              />
             ) : (
               <View style={styles.groupImagePlaceholder}>
                 <Ionicons name="people" size={28} color={COLORS.textSecondary} />
@@ -191,7 +185,6 @@ const SwipeableGroupCard = ({
             )}
           </View>
 
-          {/* Informações do grupo */}
           <View style={styles.groupInfo}>
             <View style={styles.groupHeader}>
               <Text style={styles.groupName} numberOfLines={1}>{group.name}</Text>
@@ -314,14 +307,19 @@ export default function MyGroupsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.container}>
-        {/* Logo Header */}
-        <View style={styles.logoHeader}>
+      <SafeAreaView style={styles.container} edges={['top']}>
+        <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+        {/* Header igual ao Feed */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
+            <Ionicons name="arrow-back" size={24} color={COLORS.text} />
+          </TouchableOpacity>
           <Image
-            source={require('../../assets/logo-souesporte.png')}
-            style={styles.logoLarge}
+            source={require('../../assets/images/logo.png')}
+            style={styles.logoImage}
             resizeMode="contain"
           />
+          <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" color={COLORS.primary} />
@@ -332,18 +330,25 @@ export default function MyGroupsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container}>
-      {/* Logo Header - Grande e Centralizado */}
-      <View style={styles.logoHeader}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <StatusBar barStyle="light-content" backgroundColor={COLORS.background} />
+      
+      {/* Header - Igual ao Feed com Logo Grande */}
+      <View style={styles.header}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color={COLORS.text} />
         </TouchableOpacity>
         <Image
-          source={require('../../assets/logo-souesporte.png')}
-          style={styles.logoLarge}
+          source={require('../../assets/images/logo.png')}
+          style={styles.logoImage}
           resizeMode="contain"
         />
         <View style={{ width: 40 }} />
+      </View>
+
+      {/* Page Title */}
+      <View style={styles.pageTitleContainer}>
+        <Text style={styles.pageTitle}>Grupos</Text>
       </View>
 
       {/* Deleting overlay */}
@@ -361,20 +366,25 @@ export default function MyGroupsScreen() {
           <RefreshControl
             refreshing={refreshing}
             onRefresh={onRefresh}
+            colors={[COLORS.primary]}
             tintColor={COLORS.primary}
           />
         }
       >
-        {/* Botão Criar Novo Grupo - No topo */}
-        <TouchableOpacity style={styles.createGroupButton} onPress={handleCreateGroup}>
+        {/* Criar Novo Grupo */}
+        <TouchableOpacity 
+          style={styles.createGroupButton}
+          onPress={handleCreateGroup}
+          activeOpacity={0.7}
+        >
           <View style={styles.createGroupIcon}>
-            <Ionicons name="add" size={24} color={COLORS.primary} />
+            <Ionicons name="add" size={28} color={COLORS.primary} />
           </View>
           <Text style={styles.createGroupText}>Criar Novo Grupo</Text>
           <Ionicons name="chevron-forward" size={20} color={COLORS.textSecondary} />
         </TouchableOpacity>
 
-        {/* Seção: Meus Grupos */}
+        {/* Meus Grupos (Owner/Admin) */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Meus Grupos</Text>
@@ -383,29 +393,28 @@ export default function MyGroupsScreen() {
             </View>
           </View>
           
-          {/* Hint for swipe to delete */}
           {myGroups.length > 0 && (
-            <Text style={styles.swipeHint}>
-              <Ionicons name="arrow-back" size={12} color={COLORS.textSecondary} /> Deslize para a esquerda para excluir
-            </Text>
+            <View style={styles.swipeHintContainer}>
+              <Ionicons name="arrow-back" size={12} color={COLORS.textSecondary} />
+              <Text style={styles.swipeHint}>Deslize para a esquerda para excluir</Text>
+            </View>
           )}
-          
+
           {myGroups.length === 0 ? (
             <View style={styles.emptySection}>
               <Ionicons name="people-outline" size={32} color={COLORS.textSecondary} />
               <Text style={styles.emptySectionText}>Você ainda não criou nenhum grupo</Text>
             </View>
           ) : (
-            <ScrollView 
+            <ScrollView
               style={[
                 styles.sectionScrollView,
-                // Only apply max height if more than 2 groups
                 myGroups.length > 2 && { maxHeight: SECTION_MAX_HEIGHT }
               ]}
-              nestedScrollEnabled={true}
+              nestedScrollEnabled={myGroups.length > 2}
               showsVerticalScrollIndicator={myGroups.length > 2}
             >
-              {myGroups.map(group => (
+              {myGroups.map((group) => (
                 <SwipeableGroupCard
                   key={group.id}
                   group={group}
@@ -418,7 +427,7 @@ export default function MyGroupsScreen() {
           )}
         </View>
 
-        {/* Seção: Grupos que Participo */}
+        {/* Grupos que Participo */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Grupos que Participo</Text>
@@ -426,23 +435,22 @@ export default function MyGroupsScreen() {
               <Text style={styles.countText}>{participatingGroups.length}</Text>
             </View>
           </View>
-          
+
           {participatingGroups.length === 0 ? (
             <View style={styles.emptySection}>
               <Ionicons name="search-outline" size={32} color={COLORS.textSecondary} />
               <Text style={styles.emptySectionText}>Você ainda não participa de nenhum grupo</Text>
             </View>
           ) : (
-            <ScrollView 
+            <ScrollView
               style={[
                 styles.sectionScrollView,
-                // Only apply max height if more than 2 groups
                 participatingGroups.length > 2 && { maxHeight: SECTION_MAX_HEIGHT }
               ]}
-              nestedScrollEnabled={true}
+              nestedScrollEnabled={participatingGroups.length > 2}
               showsVerticalScrollIndicator={participatingGroups.length > 2}
             >
-              {participatingGroups.map(group => (
+              {participatingGroups.map((group) => (
                 <SwipeableGroupCard
                   key={group.id}
                   group={group}
@@ -464,18 +472,12 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: COLORS.background,
   },
-  logoHeader: {
+  header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
-    paddingVertical: SPACING.lg,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.1)',
-  },
-  logoLarge: {
-    width: 180,
-    height: 60,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
   },
   backButton: {
     width: 40,
@@ -484,6 +486,21 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  logoImage: {
+    width: 150,
+    height: 45,
+  },
+  pageTitleContainer: {
+    paddingHorizontal: 18,
+    paddingBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.1)',
+  },
+  pageTitle: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: COLORS.text,
   },
   loadingContainer: {
     flex: 1,
@@ -566,10 +583,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
+  swipeHintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: SPACING.sm,
+    gap: 4,
+  },
   swipeHint: {
     fontSize: 11,
     color: COLORS.textSecondary,
-    marginBottom: SPACING.sm,
     fontStyle: 'italic',
   },
   sectionScrollView: {
