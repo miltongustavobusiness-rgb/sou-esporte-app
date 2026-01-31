@@ -148,27 +148,34 @@ export default function GroupDetailScreen() {
 
   const loadPosts = useCallback(async () => {
     try {
-      const result = await apiRequest('groups.getPosts', { groupId });
+      const result = await apiRequest('mobileSocial.socialGetFeed', { 
+        groupId,
+        userId: user?.id,
+        limit: 20,
+        offset: 0,
+      }, 'query');
       setPosts(result || []);
     } catch (error) {
       console.error('Error loading posts:', error);
     }
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   const loadMessages = useCallback(async () => {
+    if (!user?.id) return;
     try {
       setChatLoading(true);
-      const result = await apiRequest('groups.getMessages', { 
+      const result = await apiRequest('getGroupMessages', { 
+        userId: user.id,
         groupId, 
         limit: 50 
-      });
+      }, 'query');
       setMessages(result || []);
     } catch (error) {
       console.error('Error loading messages:', error);
     } finally {
       setChatLoading(false);
     }
-  }, [groupId]);
+  }, [groupId, user?.id]);
 
   useEffect(() => {
     loadGroupData();
@@ -273,11 +280,12 @@ export default function GroupDetailScreen() {
 
   // Chat functions
   const handleSendMessage = async () => {
-    if (!inputText.trim() || sending) return;
+    if (!inputText.trim() || sending || !user?.id) return;
 
     setSending(true);
     try {
-      await apiRequest('groups.sendMessage', {
+      await apiRequest('sendGroupMessage', {
+        userId: user.id,
         groupId,
         content: inputText.trim(),
         replyToId: replyingTo?.id,
@@ -538,8 +546,8 @@ export default function GroupDetailScreen() {
     return (
       <KeyboardAvoidingView
         style={styles.chatTabContainer}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 180 : 0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 100 : 0}
       >
         {chatLoading ? (
           <View style={styles.chatLoadingContainer}>
@@ -1311,7 +1319,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     backgroundColor: '#1E293B',
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingTop: 12,
+    paddingBottom: Platform.OS === 'ios' ? 12 : 12,
     borderTopWidth: 1,
     borderTopColor: '#334155',
     gap: 8,

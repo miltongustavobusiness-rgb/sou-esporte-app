@@ -320,6 +320,17 @@ export default function ManageMembersScreen() {
         )}
       </View>
 
+      {/* Add Members Button - Visible inside the list */}
+      {canManage && (
+        <TouchableOpacity 
+          style={styles.addMembersButton}
+          onPress={() => navigation.navigate('InviteMembers', { groupId, groupName })}
+        >
+          <Ionicons name="person-add" size={20} color={COLORS.primary} />
+          <Text style={styles.addMembersButtonText}>Adicionar Membros</Text>
+        </TouchableOpacity>
+      )}
+
       {/* Members List */}
       <FlatList
         data={filteredMembers}
@@ -532,6 +543,25 @@ const styles = StyleSheet.create({
   },
   addButton: {
     padding: 8,
+  },
+  addMembersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.card,
+    marginHorizontal: 16,
+    marginBottom: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderStyle: 'dashed',
+    gap: 8,
+  },
+  addMembersButtonText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
   searchContainer: {
     flexDirection: 'row',

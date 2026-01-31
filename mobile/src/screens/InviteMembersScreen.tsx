@@ -18,6 +18,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../types';
 import { api } from '../services/api';
+import { apiRequest } from '../config/api';
 import { useApp } from '../contexts/AppContext';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -29,6 +30,7 @@ interface FollowingUser {
   username: string;
   profilePhoto: string | null;
   invited: boolean;
+  inviteId?: number; // Store invite ID for cancellation
 }
 
 export default function InviteMembersScreen() {
@@ -42,54 +44,115 @@ export default function InviteMembersScreen() {
   const [loadingFollowing, setLoadingFollowing] = useState(true);
   const [invitingUser, setInvitingUser] = useState<number | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<Map<number, number>>(new Map()); // userId -> inviteId
 
   useEffect(() => {
     // Gerar link de convite único
     const baseUrl = 'https://souesporte.app/grupo';
-    const uniqueCode = `${groupId}-${Date.now().toString(36)}`;
+    const uniqueCode = `temp-${Math.random().toString(36).substring(2, 10)}`;
     setInviteLink(`${baseUrl}/${uniqueCode}`);
   }, [groupId]);
 
   useEffect(() => {
-    const loadFollowing = async () => {
+    const loadData = async () => {
       if (!user?.id) {
         setLoadingFollowing(false);
         return;
       }
       try {
-        const result = await api.getFollowing(user.id, 50, 0);
-        const users = result.users.map((u: any) => ({
+        // Load following users and pending invites in parallel
+        const [followingResult, invitesResult] = await Promise.all([
+          api.getFollowing(user.id, 50, 0),
+          apiRequest('getPendingInvites', { groupId, userId: user.id }, 'query').catch(() => []),
+        ]);
+        
+        // Create map of pending invites
+        const invitesMap = new Map<number, number>();
+        if (Array.isArray(invitesResult)) {
+          invitesResult.forEach((invite: any) => {
+            invitesMap.set(invite.user?.id || invite.invitedUserId, invite.invite?.id || invite.id);
+          });
+        }
+        setPendingInvites(invitesMap);
+        
+        // Map following users with invite status
+        const users = followingResult.users.map((u: any) => ({
           id: u.id,
           name: u.name || u.username,
           username: u.username,
           profilePhoto: u.profilePhoto,
-          invited: false,
+          invited: invitesMap.has(u.id),
+          inviteId: invitesMap.get(u.id),
         }));
         setFollowing(users);
       } catch (error) {
-        console.error('Error loading following:', error);
+        console.error('Error loading data:', error);
       } finally {
         setLoadingFollowing(false);
       }
     };
-    loadFollowing();
-  }, [user?.id]);
+    loadData();
+  }, [user?.id, groupId]);
 
   const handleInviteUser = async (userId: number) => {
     setInvitingUser(userId);
     try {
-      // TODO: Implement actual invite API call
-      // await api.inviteToGroup(groupId, userId);
+      const result = await apiRequest('inviteUser', {
+        groupId,
+        userId: user!.id,
+        targetUserId: userId,
+      });
       
-      // For now, mark as invited locally
+      // Update local state - mark as invited
       setFollowing(prev => prev.map(u => 
-        u.id === userId ? { ...u, invited: true } : u
+        u.id === userId ? { ...u, invited: true, inviteId: result.inviteId } : u
       ));
-      Alert.alert('Convite Enviado', 'O convite foi enviado com sucesso!');
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível enviar o convite');
+      setPendingInvites(prev => new Map(prev).set(userId, result.inviteId));
+      // No success alert - just update UI
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível enviar o convite');
     } finally {
       setInvitingUser(null);
+    }
+  };
+
+  const handleCancelInvite = async (userId: number, inviteId?: number) => {
+    if (!inviteId) {
+      // Try to get from pendingInvites map
+      inviteId = pendingInvites.get(userId);
+    }
+    
+    if (!inviteId) {
+      Alert.alert('Erro', 'Convite não encontrado');
+      return;
+    }
+    
+    setInvitingUser(userId);
+    try {
+      await apiRequest('cancelInvite', { inviteId, userId: user!.id });
+      
+      // Update local state - mark as not invited
+      setFollowing(prev => prev.map(u => 
+        u.id === userId ? { ...u, invited: false, inviteId: undefined } : u
+      ));
+      setPendingInvites(prev => {
+        const newMap = new Map(prev);
+        newMap.delete(userId);
+        return newMap;
+      });
+      // No success alert - just update UI
+    } catch (error: any) {
+      Alert.alert('Erro', error.message || 'Não foi possível cancelar o convite');
+    } finally {
+      setInvitingUser(null);
+    }
+  };
+
+  const handleToggleInvite = async (person: FollowingUser) => {
+    if (person.invited) {
+      await handleCancelInvite(person.id, person.inviteId);
+    } else {
+      await handleInviteUser(person.id);
     }
   };
 
@@ -210,14 +273,20 @@ export default function InviteMembersScreen() {
                     <Text style={styles.followingUsername}>@{person.username}</Text>
                   </View>
                   <TouchableOpacity
-                    style={[styles.inviteButton, person.invited && styles.inviteButtonDisabled]}
-                    onPress={() => !person.invited && handleInviteUser(person.id)}
-                    disabled={person.invited || invitingUser === person.id}
+                    style={[
+                      styles.inviteButton, 
+                      person.invited && styles.inviteButtonInvited
+                    ]}
+                    onPress={() => handleToggleInvite(person)}
+                    disabled={invitingUser === person.id}
                   >
                     {invitingUser === person.id ? (
-                      <ActivityIndicator size="small" color="#84CC16" />
+                      <ActivityIndicator size="small" color={person.invited ? "#94A3B8" : "#84CC16"} />
                     ) : (
-                      <Text style={[styles.inviteButtonText, person.invited && styles.inviteButtonTextDisabled]}>
+                      <Text style={[
+                        styles.inviteButtonText, 
+                        person.invited && styles.inviteButtonTextInvited
+                      ]}>
                         {person.invited ? 'Convidado' : 'Convidar'}
                       </Text>
                     )}
@@ -404,47 +473,48 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   followingName: {
-    color: '#F8FAFC',
     fontSize: 15,
     fontWeight: '600',
+    color: '#F8FAFC',
   },
   followingUsername: {
-    color: '#94A3B8',
     fontSize: 13,
+    color: '#94A3B8',
     marginTop: 2,
   },
   inviteButton: {
-    backgroundColor: '#84CC16',
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
+    borderWidth: 1,
+    borderColor: '#84CC16',
+    backgroundColor: 'transparent',
     minWidth: 90,
     alignItems: 'center',
   },
-  inviteButtonDisabled: {
-    backgroundColor: 'transparent',
-    borderWidth: 1,
-    borderColor: '#334155',
+  inviteButtonInvited: {
+    borderColor: '#64748B',
+    backgroundColor: '#1E293B',
   },
   inviteButtonText: {
-    color: '#0F172A',
     fontSize: 13,
     fontWeight: '600',
+    color: '#84CC16',
   },
-  inviteButtonTextDisabled: {
+  inviteButtonTextInvited: {
     color: '#94A3B8',
   },
   moreFollowing: {
+    textAlign: 'center',
     color: '#94A3B8',
     fontSize: 13,
-    textAlign: 'center',
-    padding: 12,
+    paddingVertical: 12,
   },
   // Import contacts
   importButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: '#1E293B',
     padding: 16,
     borderRadius: 12,
     marginTop: 16,
@@ -456,41 +526,39 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   importTitle: {
+    fontSize: 15,
+    fontWeight: '600',
     color: '#F8FAFC',
-    fontSize: 16,
-    fontWeight: '500',
   },
   importSubtitle: {
-    color: '#94A3B8',
     fontSize: 13,
+    color: '#94A3B8',
     marginTop: 2,
   },
-  // QR Section
+  // QR Code
   qrSection: {
     marginTop: 24,
   },
   qrContainer: {
-    backgroundColor: 'transparent',
-    borderRadius: 0,
-    padding: 24,
     alignItems: 'center',
-    borderWidth: 0,
-    borderColor: 'transparent',
+    padding: 20,
   },
   qrPlaceholder: {
     width: 160,
     height: 160,
-    backgroundColor: '#0F172A',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#334155',
   },
   qrHint: {
-    color: '#94A3B8',
     fontSize: 13,
+    color: '#94A3B8',
     textAlign: 'center',
-    marginTop: 16,
-    paddingHorizontal: 20,
+    marginTop: 12,
+    maxWidth: 250,
   },
   // Link section
   linkSection: {
@@ -499,29 +567,35 @@ const styles = StyleSheet.create({
   linkContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'transparent',
+    backgroundColor: '#1E293B',
     borderRadius: 12,
-    paddingLeft: 16,
-    paddingRight: 4,
-    paddingVertical: 4,
+    padding: 12,
     borderWidth: 1,
     borderColor: '#334155',
   },
   linkText: {
     flex: 1,
-    color: '#84CC16',
     fontSize: 14,
+    color: '#84CC16',
+    marginRight: 12,
   },
   copyButton: {
-    padding: 12,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#0F172A',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#84CC16',
   },
   copyButtonSuccess: {
     backgroundColor: '#84CC16',
+    borderColor: '#84CC16',
   },
   copiedText: {
-    color: '#84CC16',
     fontSize: 12,
+    color: '#84CC16',
     marginTop: 8,
     textAlign: 'center',
   },
@@ -539,11 +613,11 @@ const styles = StyleSheet.create({
     padding: 12,
   },
   shareLabel: {
-    color: '#F8FAFC',
     fontSize: 12,
+    color: '#94A3B8',
     marginTop: 8,
   },
-  // Tips section
+  // Tips
   tipsSection: {
     marginTop: 24,
     backgroundColor: '#1E293B',
@@ -553,14 +627,14 @@ const styles = StyleSheet.create({
     borderColor: '#334155',
   },
   tipsTitle: {
-    color: '#F8FAFC',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
+    color: '#F8FAFC',
     marginBottom: 12,
   },
   tipText: {
-    color: '#94A3B8',
     fontSize: 13,
+    color: '#94A3B8',
     marginBottom: 8,
     lineHeight: 18,
   },

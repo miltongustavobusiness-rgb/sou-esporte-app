@@ -1828,6 +1828,155 @@ export const appRouter = router({
         return db.getGroupMembers(input.groupId);
       }),
     
+    // Get pending invites (mobile)
+    getPendingInvites: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const membership = await db.getGroupMembership(input.groupId, input.userId);
+        if (!membership || !['owner', 'admin'].includes(membership.role)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas administradores podem ver convites pendentes' });
+        }
+        
+        return db.getGroupPendingInvites(input.groupId);
+      }),
+    
+    // Invite user to group (mobile)
+    inviteUser: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        targetUserId: z.number(),
+        message: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const membership = await db.getGroupMembership(input.groupId, input.userId);
+        if (!membership || !['owner', 'admin'].includes(membership.role)) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Apenas administradores podem convidar membros' });
+        }
+        
+        const inviteId = await db.createGroupInvite({
+          groupId: input.groupId,
+          invitedUserId: input.targetUserId,
+          invitedBy: input.userId,
+          message: input.message,
+        });
+        
+        return { inviteId };
+      }),
+    
+    // Cancel invite (mobile)
+    cancelInvite: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        inviteId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        await db.cancelGroupInvite(input.inviteId, input.userId);
+        return { success: true };
+      }),
+    
+    // ==================== MOBILE GROUP CHAT API ====================
+    
+    // Get group messages (mobile)
+    getGroupMessages: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        limit: z.number().optional().default(50),
+        before: z.number().optional(),
+      }))
+      .query(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const membership = await db.getGroupMembership(input.groupId, input.userId);
+        if (!membership) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
+        }
+        
+        return db.getGroupMessages(input.groupId, input.limit, input.before);
+      }),
+    
+    // Send group message (mobile)
+    sendGroupMessage: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        groupId: z.number(),
+        content: z.string(),
+        imageUrl: z.string().optional(),
+        replyToId: z.number().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const membership = await db.getGroupMembership(input.groupId, input.userId);
+        if (!membership) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
+        }
+        
+        const id = await db.sendGroupMessage({
+          groupId: input.groupId,
+          senderId: input.userId,
+          content: input.content,
+          imageUrl: input.imageUrl,
+          replyToId: input.replyToId,
+        });
+        
+        return { id };
+      }),
+    
+    // Delete group message (mobile)
+    deleteGroupMessage: publicProcedure
+      .input(z.object({
+        userId: z.number(),
+        messageId: z.number(),
+      }))
+      .mutation(async ({ input }) => {
+        const user = await db.getUserById(input.userId);
+        if (!user) {
+          throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
+        }
+        
+        const message = await db.getGroupMessage(input.messageId);
+        if (!message) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Mensagem não encontrada' });
+        }
+        
+        const membership = await db.getGroupMembership(message.groupId, input.userId);
+        const isAdmin = membership && ['owner', 'admin'].includes(membership.role);
+        const isAuthor = message.senderId === input.userId;
+        
+        if (!isAdmin && !isAuthor) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não pode excluir esta mensagem' });
+        }
+        
+        await db.deleteGroupMessage(input.messageId, input.userId);
+        return { success: true };
+      }),
+    
     // ==================== MOBILE TRAININGS API ====================
     // These routes accept userId as parameter since mobile doesn't use cookie auth
     
@@ -3268,14 +3417,14 @@ export const appRouter = router({
         
         const postId = await db.createPost({
           authorId: userId,
-          groupId: postData.groupId,
-          content: postData.content,
+          groupId: postData.groupId || null,
+          content: postData.content || null,
           type: postData.type,
-          imageUrl: postData.imageUrl,
-          videoUrl: postData.videoUrl,
-          videoThumbnailUrl: postData.videoThumbnailUrl,
-          activityData: postData.activityData ? JSON.stringify(postData.activityData) : null,
-          pollOptions: postData.pollData ? JSON.stringify(postData.pollData.options.map((opt: string, idx: number) => ({ id: idx + 1, text: opt, votes: 0 }))) : null,
+          imageUrl: postData.imageUrl || null,
+          videoUrl: postData.videoUrl || null,
+          videoThumbnailUrl: postData.videoThumbnailUrl || null,
+          activityData: postData.activityData ? postData.activityData : null,
+          pollOptions: postData.pollData ? postData.pollData.options.map((opt: string, idx: number) => ({ id: idx + 1, text: opt, votes: 0 })) : null,
         });
         
         return { success: true, postId };
