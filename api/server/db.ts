@@ -2992,31 +2992,48 @@ export async function getReportStats(): Promise<{
 // ==================== GROUPS ====================
 
 export async function createGroup(group: InsertGroup): Promise<number> {
-  const db = await getDb();
-  if (!db) throw new Error("Database not available");
+  console.log('[db.createGroup] Starting group creation with data:', JSON.stringify(group));
   
+  const db = await getDb();
+  if (!db) {
+    console.error('[db.createGroup] Database not available');
+    throw new Error("Database not available");
+  }
+  
+  console.log('[db.createGroup] Inserting group into database...');
   const result = await db.insert(groups).values(group);
   const groupId = result[0].insertId;
+  console.log('[db.createGroup] Group inserted with ID:', groupId);
   
   // Add owner as member
+  console.log('[db.createGroup] Adding owner as member...');
   await db.insert(groupMembers).values({
     groupId,
     userId: group.ownerId,
     role: 'owner',
     status: 'active',
   });
+  console.log('[db.createGroup] Owner added as member');
   
   // Update member count
+  console.log('[db.createGroup] Updating member count...');
   await db.update(groups)
     .set({ memberCount: 1 })
     .where(eq(groups.id, groupId));
+  console.log('[db.createGroup] Member count updated');
   
+  console.log('[db.createGroup] Group creation completed successfully. ID:', groupId);
   return groupId;
 }
 
 export async function getUserGroups(userId: number): Promise<any[]> {
+  console.log('[db.getUserGroups] Getting groups for userId:', userId);
+  
   const db = await getDb();
-  if (!db) return [];
+  if (!db) {
+    console.error('[db.getUserGroups] Database not available');
+    return [];
+  }
   
   const result = await db.select({
     group: groups,
@@ -3030,10 +3047,16 @@ export async function getUserGroups(userId: number): Promise<any[]> {
     eq(groups.status, 'active')
   ));
   
-  return result.map(r => ({
+  console.log('[db.getUserGroups] Query result count:', result.length);
+  
+  const mappedResult = result.map(r => ({
     ...r.group,
     role: r.membership.role,
   }));
+  
+  console.log('[db.getUserGroups] Returning groups:', mappedResult.map(g => ({ id: g.id, name: g.name, role: g.role })));
+  
+  return mappedResult;
 }
 
 export async function joinGroup(groupId: number, userId: number): Promise<boolean> {

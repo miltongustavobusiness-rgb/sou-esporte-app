@@ -1630,20 +1630,28 @@ ApiService.prototype.getSavedPosts = async function(limit: number = 50, offset: 
 // Groups
 ApiService.prototype.getUserGroups = async function(): Promise<Group[]> {
   try {
+    console.log('[api.getUserGroups] Starting...');
+    
     // Get userId from stored user data
     const userData = await AsyncStorage.getItem('@souesporte_user');
+    console.log('[api.getUserGroups] User data from storage:', userData ? 'found' : 'not found');
+    
     const user = userData ? JSON.parse(userData) : null;
     const userId = user?.id;
+    console.log('[api.getUserGroups] User ID:', userId);
     
     if (!userId) {
-      console.error('Get user groups: User not logged in');
+      console.error('[api.getUserGroups] User not logged in - no userId');
       return [];
     }
     
     // Use mobile endpoint which accepts userId parameter
-    return await this.trpcQuery<Group[]>('mobile.getUserGroups', { userId });
+    console.log('[api.getUserGroups] Calling mobile.getUserGroups with userId:', userId);
+    const result = await this.trpcQuery<Group[]>('mobile.getUserGroups', { userId });
+    console.log('[api.getUserGroups] Result:', result?.length || 0, 'groups');
+    return result;
   } catch (error) {
-    console.error('Get user groups error:', error);
+    console.error('[api.getUserGroups] Error:', error);
     return [];
   }
 };
@@ -1718,12 +1726,14 @@ ApiService.prototype.createGroup = async function(data: {
       cleanData.requiresApproval = data.requiresApproval;
     }
     
-    console.log('[API] Creating group with data:', JSON.stringify(cleanData));
+    console.log('[api.createGroup] Creating group with data:', JSON.stringify(cleanData));
     
     // Use mobile endpoint which accepts userId parameter
-    return await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.createGroup', cleanData);
+    const result = await this.trpcMutation<{ success: boolean; groupId: number }>('mobile.createGroup', cleanData);
+    console.log('[api.createGroup] Result:', JSON.stringify(result));
+    return result;
   } catch (error) {
-    console.error('Create group error:', error);
+    console.error('[api.createGroup] Error:', error);
     throw error;
   }
 };

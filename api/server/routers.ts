@@ -1653,11 +1653,20 @@ export const appRouter = router({
         userId: z.number(),
       }))
       .query(async ({ input }) => {
+        console.log('[mobile.getUserGroups] Request for userId:', input.userId);
+        
         const user = await db.getUserById(input.userId);
         if (!user) {
+          console.log('[mobile.getUserGroups] User not found:', input.userId);
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
         }
-        return await db.getUserGroups(input.userId);
+        
+        console.log('[mobile.getUserGroups] User found:', user.name);
+        
+        const groups = await db.getUserGroups(input.userId);
+        console.log('[mobile.getUserGroups] Groups found:', groups.length, groups.map(g => ({ id: g.id, name: g.name, role: g.role })));
+        
+        return groups;
       }),
     
     // Create group (mobile)
