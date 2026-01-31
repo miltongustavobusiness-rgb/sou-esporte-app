@@ -6223,63 +6223,8 @@ export async function deleteGroupMessage(messageId: number, deletedBy: number): 
   }
 }
 
-export async function getGroupMessages(groupId: number, limit: number = 50, beforeId?: number): Promise<any[]> {
-  try {
-    const db = await getDb();
-    if (!db) return [];
-    
-    console.log('[db.getGroupMessages] Getting messages for group:', groupId);
-    
-    let query = `
-      SELECT 
-        gm.id, gm.groupId, gm.senderId, gm.content, 
-        gm.imageUrl, gm.videoUrl, gm.fileUrl, gm.fileName,
-        gm.replyToId, gm.status, gm.createdAt,
-        u.name as senderName, u.photoUrl as senderPhotoUrl,
-        rm.id as replyMessageId, rm.content as replyContent, rm.senderId as replySenderId,
-        ru.name as replyUserName
-      FROM group_messages gm
-      LEFT JOIN users u ON gm.senderId = u.id
-      LEFT JOIN group_messages rm ON gm.replyToId = rm.id
-      LEFT JOIN users ru ON rm.senderId = ru.id
-      WHERE gm.groupId = ${groupId} AND gm.status = 'active'
-    `;
-    
-    if (beforeId) {
-      query += ` AND gm.id < ${beforeId}`;
-    }
-    
-    query += ` ORDER BY gm.createdAt DESC LIMIT ${limit}`;
-    
-    const result = await db.execute(sql.raw(query));
-    const rows = (result as any)[0] || [];
-    
-    // Get reactions for each message
-    const messagesWithReactions = await Promise.all(
-      rows.map(async (msg: any) => {
-        const reactions = await getMessageReactions(msg.id);
-        return {
-          ...msg,
-          reactions,
-          replyTo: msg.replyMessageId ? {
-            id: msg.replyMessageId,
-            content: msg.replyContent,
-            senderId: msg.replySenderId,
-            senderName: msg.replyUserName
-          } : null
-        };
-      })
-    );
-    
-    console.log('[db.getGroupMessages] Found messages:', messagesWithReactions.length);
-    return messagesWithReactions.reverse(); // Return in chronological order
-  } catch (error: any) {
-    console.error('[db.getGroupMessages] Error:', error.message);
-    return [];
-  }
-}
-
-export async function getMessageReactions(messageId: number): Promise<any[]> {
+// GROUP MESSAGE REACTIONS - for group chat
+export async function getGroupMessageReactions(messageId: number): Promise<any[]> {
   try {
     const db = await getDb();
     if (!db) return [];
@@ -6296,17 +6241,17 @@ export async function getMessageReactions(messageId: number): Promise<any[]> {
     
     return (result as any)[0] || [];
   } catch (error: any) {
-    console.error('[db.getMessageReactions] Error:', error.message);
+    console.error('[db.getGroupMessageReactions] Error:', error.message);
     return [];
   }
 }
 
-export async function addMessageReaction(messageId: number, userId: number, emoji: string): Promise<number> {
+export async function addGroupMessageReaction(messageId: number, userId: number, emoji: string): Promise<number> {
   try {
     const db = await getDb();
     if (!db) throw new Error("Database not available");
     
-    console.log('[db.addMessageReaction] Adding reaction:', { messageId, userId, emoji });
+    console.log('[db.addGroupMessageReaction] Adding reaction:', { messageId, userId, emoji });
     
     // Check if user already reacted with this emoji
     const existing = await db.execute(
@@ -6315,7 +6260,7 @@ export async function addMessageReaction(messageId: number, userId: number, emoj
     
     const existingRows = (existing as any)[0] || [];
     if (existingRows.length > 0) {
-      console.log('[db.addMessageReaction] Reaction already exists');
+      console.log('[db.addGroupMessageReaction] Reaction already exists');
       return existingRows[0].id;
     }
     
@@ -6324,28 +6269,28 @@ export async function addMessageReaction(messageId: number, userId: number, emoj
     );
     
     const insertId = (result as any)[0]?.insertId;
-    console.log('[db.addMessageReaction] Reaction added with ID:', insertId);
+    console.log('[db.addGroupMessageReaction] Reaction added with ID:', insertId);
     return insertId;
   } catch (error: any) {
-    console.error('[db.addMessageReaction] Error:', error.message);
+    console.error('[db.addGroupMessageReaction] Error:', error.message);
     throw error;
   }
 }
 
-export async function removeMessageReaction(messageId: number, userId: number, emoji: string): Promise<void> {
+export async function removeGroupMessageReaction(reactionId: number, userId: number): Promise<void> {
   try {
     const db = await getDb();
     if (!db) return;
     
-    console.log('[db.removeMessageReaction] Removing reaction:', { messageId, userId, emoji });
+    console.log('[db.removeGroupMessageReaction] Removing reaction:', { reactionId, userId });
     
     await db.execute(
-      sql.raw(`DELETE FROM group_message_reactions WHERE messageId = ${messageId} AND userId = ${userId} AND emoji = '${emoji}'`)
+      sql.raw(`DELETE FROM group_message_reactions WHERE id = ${reactionId} AND userId = ${userId}`)
     );
     
-    console.log('[db.removeMessageReaction] Reaction removed');
+    console.log('[db.removeGroupMessageReaction] Reaction removed');
   } catch (error: any) {
-    console.error('[db.removeMessageReaction] Error:', error.message);
+    console.error('[db.removeGroupMessageReaction] Error:', error.message);
   }
 }
 

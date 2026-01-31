@@ -2066,7 +2066,7 @@ export const appRouter = router({
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Você não é membro deste grupo' });
         }
         
-        const id = await db.addMessageReaction(input.messageId, input.userId, input.emoji);
+        const id = await db.addGroupMessageReaction(input.messageId, input.userId, input.emoji);
         return { id };
       }),
     
@@ -2074,8 +2074,7 @@ export const appRouter = router({
     removeGroupMessageReaction: publicProcedure
       .input(z.object({
         userId: z.number(),
-        messageId: z.number(),
-        emoji: z.string(),
+        reactionId: z.number(),
       }))
       .mutation(async ({ input }) => {
         const user = await db.getUserById(input.userId);
@@ -2083,12 +2082,7 @@ export const appRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
         }
         
-        const message = await db.getGroupMessage(input.messageId);
-        if (!message) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Mensagem não encontrada' });
-        }
-        
-        await db.removeMessageReaction(input.messageId, input.userId, input.emoji);
+        await db.removeGroupMessageReaction(input.reactionId, input.userId);
         return { success: true };
       }),
     
