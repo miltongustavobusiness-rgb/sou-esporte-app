@@ -2447,6 +2447,21 @@ export async function getFeedPosts(options: {
   
   const { userId, groupId, limit = 20, offset = 0 } = options;
   
+  // Build where conditions
+  // If groupId is provided, show only posts from that group
+  // If no groupId, show only PUBLIC posts (posts without groupId) - group posts are private!
+  const whereConditions = groupId 
+    ? and(
+        eq(posts.status, 'active'),
+        eq(posts.moderationStatus, 'approved'),
+        eq(posts.groupId, groupId)
+      )
+    : and(
+        eq(posts.status, 'active'),
+        eq(posts.moderationStatus, 'approved'),
+        isNull(posts.groupId) // CRITICAL: Only show posts WITHOUT groupId in public feed
+      );
+  
   let query = db.select({
     post: posts,
     author: {
@@ -2463,11 +2478,7 @@ export async function getFeedPosts(options: {
   .from(posts)
   .leftJoin(users, eq(posts.authorId, users.id))
   .leftJoin(groups, eq(posts.groupId, groups.id))
-  .where(and(
-    eq(posts.status, 'active'),
-    eq(posts.moderationStatus, 'approved'),
-    groupId ? eq(posts.groupId, groupId) : undefined
-  ))
+  .where(whereConditions)
   .orderBy(desc(posts.createdAt))
   .limit(limit)
   .offset(offset);
