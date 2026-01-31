@@ -1289,7 +1289,7 @@ export default function GroupDetailScreen() {
               
               {/* Sou Esporte Logo - Large and Centered */}
               <Image
-                source={require('../assets/logo-sou-esporte.png')}
+                source={require('../../assets/logo-souesporte.png')}
                 style={styles.headerLogo}
                 resizeMode="contain"
               />
