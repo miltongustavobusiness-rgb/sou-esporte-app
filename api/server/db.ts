@@ -5796,14 +5796,14 @@ export async function getTrainings(filters?: {
   const db = await getDb();
   if (!db) return [];
   
-  const limit = filters?.limit || 50;
+  const queryLimit = filters?.limit || 50;
   
   let query = db.select({
     training: trainings,
     creator: {
       id: users.id,
       name: users.name,
-      avatar: users.avatar,
+      photoUrl: users.photoUrl,
     },
     group: {
       id: groups.id,
@@ -5815,7 +5815,7 @@ export async function getTrainings(filters?: {
   .leftJoin(users, eq(trainings.createdBy, users.id))
   .leftJoin(groups, eq(trainings.groupId, groups.id))
   .orderBy(desc(trainings.scheduledAt))
-  .limit(limit);
+  .limit(queryLimit);
   
   const result = await query;
   
@@ -5835,7 +5835,7 @@ export async function getTrainingById(trainingId: number): Promise<any | null> {
     creator: {
       id: users.id,
       name: users.name,
-      avatar: users.avatar,
+      photoUrl: users.photoUrl,
     },
     group: {
       id: groups.id,
@@ -5868,7 +5868,7 @@ export async function getUserTrainings(userId: number): Promise<any[]> {
     creator: {
       id: users.id,
       name: users.name,
-      avatar: users.avatar,
+      photoUrl: users.photoUrl,
     },
     group: {
       id: groups.id,
@@ -5967,7 +5967,7 @@ export async function getNearbyTrainings(
     creator: {
       id: users.id,
       name: users.name,
-      avatar: users.avatar,
+      photoUrl: users.photoUrl,
     },
     group: {
       id: groups.id,

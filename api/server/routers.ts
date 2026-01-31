@@ -1667,7 +1667,7 @@ export const appRouter = router({
         name: z.string().min(3).max(100),
         description: z.string().max(1000).optional(),
         privacy: z.enum(['public', 'private']).default('public'),
-        groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'other']).default('running'),
+        groupType: z.enum(['running', 'cycling', 'triathlon', 'trail', 'swimming', 'fitness', 'funcional', 'caminhada_trail', 'yoga', 'lutas', 'other']).default('running'),
         city: z.string().optional(),
         state: z.string().optional(),
         meetingPoint: z.string().optional(),
@@ -1679,9 +1679,18 @@ export const appRouter = router({
           throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Você precisa estar autenticado para realizar esta ação.' });
         }
         
-        const { userId, ...groupData } = input;
+        const { userId, requiresApproval, ...groupData } = input;
+        
+        // Create group with proper data structure
         const groupId = await db.createGroup({
-          ...groupData,
+          name: groupData.name,
+          description: groupData.description || null,
+          privacy: groupData.privacy,
+          groupType: groupData.groupType,
+          city: groupData.city || null,
+          state: groupData.state || null,
+          meetingPoint: groupData.meetingPoint || null,
+          requiresApproval: requiresApproval || false,
           ownerId: userId,
         });
         
