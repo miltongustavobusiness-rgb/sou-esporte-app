@@ -5327,38 +5327,65 @@ export async function createGroupInvite(invite: {
 }
 
 export async function getGroupPendingInvites(groupId: number): Promise<any[]> {
-  const db = await getDb();
-  if (!db) return [];
-  
-  const result = await db.select({
-    invite: groupInvites,
-    user: {
-      id: users.id,
-      name: users.name,
-      username: users.username,
-      photoUrl: users.photoUrl,
-    },
-  })
-  .from(groupInvites)
-  .innerJoin(users, eq(groupInvites.invitedUserId, users.id))
-  .where(and(
-    eq(groupInvites.groupId, groupId),
-    eq(groupInvites.status, 'pending')
-  ));
-  
-  return result;
+  try {
+    const db = await getDb();
+    if (!db) return [];
+    
+    console.log('[db.getGroupPendingInvites] Getting invites for groupId:', groupId);
+    
+    // Use raw SQL to avoid schema mismatch
+    const result = await db.execute(
+      sql`SELECT 
+            gi.id as invite_id, gi.groupId, gi.invitedUserId, gi.invitedBy, gi.status, gi.message, gi.createdAt,
+            u.id as user_id, u.name as user_name, u.username as user_username, u.photoUrl as user_photoUrl
+          FROM group_invites gi
+          INNER JOIN users u ON gi.invitedUserId = u.id
+          WHERE gi.groupId = ${groupId} AND gi.status = 'pending'
+          ORDER BY gi.createdAt DESC`
+    );
+    
+    const rows = (result as any)[0] || [];
+    console.log('[db.getGroupPendingInvites] Found invites:', rows.length);
+    
+    return rows.map((r: any) => ({
+      invite: {
+        id: r.invite_id,
+        groupId: r.groupId,
+        invitedUserId: r.invitedUserId,
+        invitedBy: r.invitedBy,
+        status: r.status,
+        message: r.message,
+        createdAt: r.createdAt,
+      },
+      user: {
+        id: r.user_id,
+        name: r.user_name,
+        username: r.user_username,
+        photoUrl: r.user_photoUrl,
+      },
+    }));
+  } catch (error: any) {
+    console.error('[db.getGroupPendingInvites] Error:', error.message);
+    return [];
+  }
 }
 
 export async function cancelGroupInvite(inviteId: number, userId: number): Promise<void> {
-  const db = await getDb();
-  if (!db) return;
-  
-  await db.update(groupInvites)
-    .set({ 
-      status: 'cancelled',
-      respondedAt: new Date(),
-    } as any)
-    .where(eq(groupInvites.id, inviteId));
+  try {
+    const db = await getDb();
+    if (!db) return;
+    
+    console.log('[db.cancelGroupInvite] Cancelling invite:', inviteId);
+    
+    // Use raw SQL
+    await db.execute(
+      sql`UPDATE group_invites SET status = 'cancelled' WHERE id = ${inviteId}`
+    );
+    
+    console.log('[db.cancelGroupInvite] Invite cancelled');
+  } catch (error: any) {
+    console.error('[db.cancelGroupInvite] Error:', error.message);
+  }
 }
 
 export async function searchUsersNotInGroup(groupId: number, query: string): Promise<any[]> {
